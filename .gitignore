@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Original permission documents (80 MB of embedded fonts) — kept locally.
+# Rebuild templates/*.docx with: node scripts/build-templates.mjs
+/templates/source

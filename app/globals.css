@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+/* FlyBit runs light-only: black, white and gray, with the three airspace
+   zone colours as the single point of colour on the page. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f7f7f8;
+  --foreground: #0a0a0a;
 }
 
 @theme inline {
@@ -12,15 +15,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Tabular figures wherever numbers sit in a column. */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }

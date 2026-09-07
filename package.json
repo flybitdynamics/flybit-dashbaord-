@@ -6,10 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "templates:build": "node scripts/build-templates.mjs",
+    "templates:verify": "node scripts/verify-templates.mjs && node scripts/compare-pdf-layout.mjs",
+    "logo:build": "node scripts/build-logo.mjs"
   },
   "dependencies": {
+    "docxtemplater": "^3.69.3",
+    "firebase": "^12.18.0",
     "next": "16.3.4",
+    "pizzip": "^3.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -20,6 +26,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
