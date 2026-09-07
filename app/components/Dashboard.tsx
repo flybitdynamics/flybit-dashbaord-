@@ -26,7 +26,6 @@ import {
   subscribe,
   upsertShow,
   importFromBrowser,
-  loadSampleRows,
 } from "../lib/store";
 import { DocumentsDialog } from "./DocumentsDialog";
 import { FilterState, Filters, defaultFilters } from "./Filters";
@@ -222,32 +221,7 @@ export function Dashboard() {
         </div>
       )}
 
-      {ready && shows.length === 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-600">
-          <span className="flex-1">
-            <strong className="font-semibold text-neutral-900">No shows in Firebase yet.</strong>{" "}
-            {strandedRows > 0
-              ? `There ${strandedRows === 1 ? "is 1 show" : `are ${strandedRows} shows`} saved in this browser from before — bring them across, or start fresh.`
-              : "Add your first booking, or load a few example rows to see how the desk works."}
-          </span>
-          {strandedRows > 0 && (
-            <button
-              type="button"
-              onClick={importFromBrowser}
-              className="rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
-            >
-              Import {strandedRows} from this browser
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={loadSampleRows}
-            className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs hover:bg-neutral-100"
-          >
-            Load sample rows
-          </button>
-        </div>
-      )}
+
 
       {!ready ? (
         <div className="flex h-24 items-center justify-center rounded-lg border border-neutral-200 bg-white text-sm text-neutral-500">
@@ -279,32 +253,9 @@ export function Dashboard() {
               onPayments={(show) => setDialog({ kind: "payments", show })}
               onDocuments={(show) => setDialog({ kind: "documents", show })}
             />
-
-            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-neutral-500">
-              <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-emerald-500" />
-                Green — no permission needed, up to 120 m
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-amber-500" />
-                Yellow — controlled airspace, ATC permission needed
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-red-500" />
-                Red — Central Government permission needed
-              </span>
-              <span className="text-neutral-400">
-                Zone comes from the DGCA airspace map, not from your filing status.
-              </span>
-            </div>
           </section>
         </>
       )}
-
-      <footer className="border-t border-neutral-200 pt-3 text-xs text-neutral-500">
-        Synced to Firebase ({process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}) · Amounts in INR ·
-        Times are local to the venue
-      </footer>
 
       {dialog.kind === "show" && (
         <ShowDialog
