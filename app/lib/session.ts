@@ -4,9 +4,22 @@
  *  and the browser fills it in without a setState-in-effect. */
 const KEY = "flybit_auth_session";
 
+export type Role = "admin" | "viewer";
+
 export interface Session {
   username: string;
+  role: Role;
 }
+
+/** The accounts that can sign in. Change a password here and it takes effect
+ *  on the next sign-in.
+ *
+ *  NOTE: this is a gate on the interface only. Firestore's rules are open, so
+ *  it does not stop anyone reaching the data directly — see firestore.rules. */
+const ACCOUNTS: Record<string, { password: string; role: Role }> = {
+  admin: { password: "admin@123", role: "admin" },
+  viewer: { password: "viewer@123", role: "viewer" },
+};
 
 let cached: Session | null = null;
 let loaded = false;
@@ -21,7 +34,11 @@ function read(): Session | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed?.username === "admin" ? (parsed as Session) : null;
+    const account = ACCOUNTS[parsed?.username];
+    if (!account) return null;
+    // Take the role from the account list, never from stored JSON, so
+    // editing localStorage cannot promote a viewer to admin.
+    return { username: parsed.username, role: account.role };
   } catch {
     return null;
   }
@@ -56,8 +73,10 @@ export function getServerSnapshot(): Session | null | undefined {
 }
 
 export function signIn(username: string, password: string): boolean {
-  if (username.trim().toLowerCase() !== "admin" || password !== "admin@123") return false;
-  cached = { username: "admin" };
+  const id = username.trim().toLowerCase();
+  const account = ACCOUNTS[id];
+  if (!account || account.password !== password) return false;
+  cached = { username: id, role: account.role };
   loaded = true;
   try {
     localStorage.setItem(KEY, JSON.stringify(cached));

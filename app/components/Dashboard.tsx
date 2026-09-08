@@ -23,6 +23,7 @@ import {
   subscribe,
   upsertShow,
 } from "../lib/store";
+import { useAuth } from "./AuthProvider";
 import { DocumentsDialog } from "./DocumentsDialog";
 import { SiteHeader } from "./SiteHeader";
 import { FilterState, Filters, defaultFilters } from "./Filters";
@@ -39,6 +40,7 @@ type Dialog =
   | { kind: "documents"; show: Show };
 
 export function Dashboard() {
+  const { canEdit } = useAuth();
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
 
@@ -181,13 +183,15 @@ export function Dashboard() {
             >
               Export CSV
             </button>
-            <button
-              type="button"
-              onClick={() => setDialog({ kind: "show", show: null })}
-              className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-            >
-              + New show
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setDialog({ kind: "show", show: null })}
+                className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+              >
+                + New show
+              </button>
+            )}
           </>
         }
       />
@@ -225,6 +229,7 @@ export function Dashboard() {
               shows={visible}
               payments={payments}
               total={shows.length}
+              canEdit={canEdit}
               onEdit={(show) => setDialog({ kind: "show", show })}
               onDelete={handleDelete}
               onPayments={(show) => setDialog({ kind: "payments", show })}
@@ -252,6 +257,7 @@ export function Dashboard() {
           key={dialog.show.id}
           show={shows.find((s) => s.id === dialog.show.id) ?? dialog.show}
           payments={payments}
+          canEdit={canEdit}
           onAdd={addPayment}
           onRemove={removePayment}
           onClose={() => setDialog({ kind: "none" })}

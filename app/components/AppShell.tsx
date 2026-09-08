@@ -68,7 +68,7 @@ const NAV: NavItem[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, user, canEdit } = useAuth();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
 
   function toggle() {
@@ -134,7 +134,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
+        {!canEdit && (
+          <div
+            className={`mx-2 mb-2 rounded-md border border-amber-200 bg-amber-50 text-center text-amber-800 ${
+              collapsed ? "px-1 py-1.5 text-[10px] font-semibold" : "px-2 py-1.5 text-[11px]"
+            }`}
+            title="Signed in as a viewer — you can look at everything but not change it"
+          >
+            {collapsed ? "VIEW" : "View only"}
+          </div>
+        )}
+
         <div className="flex flex-col gap-1 border-t border-neutral-200 p-2">
+          {!collapsed && user && (
+            <div className="px-3 pb-1 pt-1 text-[11px] text-neutral-500">
+              Signed in as <span className="font-medium text-neutral-700">{user.username}</span>
+            </div>
+          )}
           <button
             type="button"
             onClick={toggle}

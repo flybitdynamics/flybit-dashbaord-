@@ -29,6 +29,7 @@ import {
   upsertMember,
 } from "../../lib/team-store";
 import { formatCompactMoney, formatDate, formatMoney, formatNumber, todayISO } from "../../lib/types";
+import { useAuth } from "../AuthProvider";
 import { SiteHeader } from "../SiteHeader";
 import { AttendanceDialog } from "./AttendanceDialog";
 import { LeaveDialog } from "./LeaveDialog";
@@ -42,6 +43,7 @@ type Dialog =
   | { kind: "attendance" };
 
 export function TeamDashboard() {
+  const { canEdit } = useAuth();
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
   const [month, setMonth] = useState(currentMonth());
 
@@ -154,27 +156,31 @@ export function TeamDashboard() {
             >
               Export CSV
             </button>
-            <button
-              type="button"
-              onClick={() => setDialog({ kind: "attendance" })}
-              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
-            >
-              Record attendance
-            </button>
-            <button
-              type="button"
-              onClick={() => setDialog({ kind: "leave" })}
-              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
-            >
-              Apply for leave
-            </button>
-            <button
-              type="button"
-              onClick={() => setDialog({ kind: "member", member: null })}
-              className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-            >
-              + Add member
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setDialog({ kind: "attendance" })}
+                  className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
+                >
+                  Record attendance
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDialog({ kind: "leave" })}
+                  className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
+                >
+                  Apply for leave
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDialog({ kind: "member", member: null })}
+                  className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+                >
+                  + Add member
+                </button>
+              </>
+            )}
           </>
         }
       />
@@ -221,7 +227,13 @@ export function TeamDashboard() {
 
             {requests.length === 0 ? (
               <div className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-6 text-sm text-neutral-500">
-                No leave applied for yet. Use <strong>Apply for leave</strong> above.
+                {canEdit ? (
+                  <>
+                    No leave applied for yet. Use <strong>Apply for leave</strong> above.
+                  </>
+                ) : (
+                  "No leave applied for yet."
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-3">
@@ -250,20 +262,24 @@ export function TeamDashboard() {
                         )}
 
                         <div className="mt-3 flex items-center gap-2 border-t border-amber-200/70 pt-3">
-                          <button
-                            type="button"
-                            onClick={() => decide(request, "approved")}
-                            className="rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => decide(request, "rejected")}
-                            className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 hover:bg-neutral-100"
-                          >
-                            Reject
-                          </button>
+                          {canEdit && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => decide(request, "approved")}
+                                className="rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => decide(request, "rejected")}
+                                className="rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-xs text-neutral-700 hover:bg-neutral-100"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
                           <span className="ml-auto text-[11px] text-neutral-500">
                             applied {formatDate(request.appliedOn)}
                           </span>
@@ -316,13 +332,15 @@ export function TeamDashboard() {
                                 </p>
                               </td>
                               <td className="px-3 py-2.5 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() => removeLeave(request.id)}
-                                  className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-500 hover:border-red-300 hover:text-red-600"
-                                >
-                                  Delete
-                                </button>
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeLeave(request.id)}
+                                    className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-500 hover:border-red-300 hover:text-red-600"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -381,7 +399,9 @@ export function TeamDashboard() {
                         <td colSpan={10} className="px-4 py-12 text-center">
                           <p className="font-medium text-neutral-900">No team members yet</p>
                           <p className="mt-1 text-sm text-neutral-500">
-                            Add your first person to start tracking salary, attendance and leave.
+                            {canEdit
+                              ? "Add your first person to start tracking salary, attendance and leave."
+                              : "Nobody has been added to the team yet."}
                           </p>
                         </td>
                       </tr>
@@ -443,13 +463,15 @@ export function TeamDashboard() {
                               <MemberStatusBadge status={member.status} />
                             </td>
                             <td className="px-3 py-2.5 text-right">
-                              <button
-                                type="button"
-                                onClick={() => setDialog({ kind: "member", member })}
-                                className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-600 hover:border-neutral-300 hover:bg-white hover:text-neutral-900"
-                              >
-                                Edit
-                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDialog({ kind: "member", member })}
+                                  className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-600 hover:border-neutral-300 hover:bg-white hover:text-neutral-900"
+                                >
+                                  Edit
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );

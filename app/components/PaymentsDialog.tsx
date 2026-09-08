@@ -17,12 +17,14 @@ import { Field, Modal, inputClass } from "./Modal";
 export function PaymentsDialog({
   show,
   payments,
+  canEdit,
   onAdd,
   onRemove,
   onClose,
 }: {
   show: Show;
   payments: Payment[];
+  canEdit: boolean;
   onAdd: (draft: Omit<Payment, "id">) => void;
   onRemove: (id: string) => void;
   onClose: () => void;
@@ -81,7 +83,9 @@ export function PaymentsDialog({
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-6 text-center text-sm text-neutral-500">
-                    Nothing received yet. Log the first payment below.
+                    {canEdit
+                      ? "Nothing received yet. Log the first payment below."
+                      : "Nothing received yet."}
                   </td>
                 </tr>
               ) : (
@@ -96,13 +100,15 @@ export function PaymentsDialog({
                     <td className="px-3 py-2 text-neutral-600">{PAYMENT_MODES[payment.mode]}</td>
                     <td className="px-3 py-2 text-xs text-neutral-500">{payment.notes || "—"}</td>
                     <td className="px-3 py-2 text-right">
-                      <button
-                        type="button"
-                        onClick={() => onRemove(payment.id)}
-                        className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-500 hover:border-red-300 hover:text-red-600"
-                      >
-                        Remove
-                      </button>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onRemove(payment.id)}
+                          className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-500 hover:border-red-300 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -111,6 +117,7 @@ export function PaymentsDialog({
           </table>
         </div>
 
+        {canEdit && (
         <form
           onSubmit={submit}
           className="mt-5 grid grid-cols-1 gap-3.5 rounded-lg border border-neutral-200 bg-neutral-50 p-4 sm:grid-cols-2"
@@ -173,6 +180,7 @@ export function PaymentsDialog({
             </button>
           </div>
         </form>
+        )}
       </div>
     </Modal>
   );

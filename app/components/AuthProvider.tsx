@@ -13,11 +13,14 @@ import { LoginForm } from "./LoginForm";
 
 interface AuthContextType {
   user: Session | null;
+  /** False for the viewer account: it may read everything, change nothing. */
+  canEdit: boolean;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  canEdit: false,
   logout: () => {},
 });
 
@@ -40,7 +43,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user: session, logout: signOut }}>
+    <AuthContext.Provider
+      value={{ user: session, canEdit: session.role === "admin", logout: signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );

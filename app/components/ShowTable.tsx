@@ -38,6 +38,7 @@ export function ShowTable({
   shows,
   payments,
   total,
+  canEdit,
   onEdit,
   onDelete,
   onPayments,
@@ -46,6 +47,7 @@ export function ShowTable({
   shows: Show[];
   payments: Payment[];
   total: number;
+  canEdit: boolean;
   onEdit: (show: Show) => void;
   onDelete: (show: Show) => void;
   onPayments: (show: Show) => void;
@@ -188,20 +190,24 @@ export function ShowTable({
                         >
                           Payments
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => onEdit(show)}
-                          className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-600 hover:border-neutral-300 hover:bg-white"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDelete(show)}
-                          className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-500 hover:border-red-300 hover:bg-white hover:text-red-600"
-                        >
-                          Delete
-                        </button>
+                        {canEdit && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onEdit(show)}
+                              className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-600 hover:border-neutral-300 hover:bg-white"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDelete(show)}
+                              className="rounded-md border border-transparent px-2 py-1 text-xs text-neutral-500 hover:border-red-300 hover:bg-white hover:text-red-600"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

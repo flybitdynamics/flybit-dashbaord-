@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { DEFAULT_SETTINGS, Settings } from "../lib/types";
 import { getServerSnapshot, getSnapshot, subscribe, updateSettings } from "../lib/store";
 import { Field, inputClass } from "./Modal";
+import { useAuth } from "./AuthProvider";
 
 const GROUPS: { title: string; note?: string; keys: (keyof Settings)[] }[] = [
   {
@@ -72,6 +73,7 @@ const LABELS: Record<keyof Settings, string> = {
 };
 
 export function SettingsForm() {
+  const { canEdit } = useAuth();
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [draft, setDraft] = useState<Settings | null>(null);
   const [saved, setSaved] = useState(false);
@@ -113,8 +115,9 @@ export function SettingsForm() {
               <Field key={key} label={LABELS[key]} htmlFor={`s-${key}`}>
                 <input
                   id={`s-${key}`}
-                  className={inputClass}
+                  className={`${inputClass} ${canEdit ? "" : "bg-neutral-50 text-neutral-500"}`}
                   value={settings[key]}
+                  readOnly={!canEdit}
                   onChange={(e) => set(key, e.target.value)}
                 />
               </Field>
@@ -123,26 +126,32 @@ export function SettingsForm() {
         </section>
       ))}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-        >
-          Save settings
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setDraft({ ...DEFAULT_SETTINGS });
-            setSaved(false);
-          }}
-          className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
-        >
-          Reset to document defaults
-        </button>
-        {saved && <span className="text-sm text-emerald-700">Saved.</span>}
-        {draft && !saved && <span className="text-sm text-neutral-500">Unsaved changes.</span>}
-      </div>
+      {canEdit ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          >
+            Save settings
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDraft({ ...DEFAULT_SETTINGS });
+              setSaved(false);
+            }}
+            className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
+          >
+            Reset to document defaults
+          </button>
+          {saved && <span className="text-sm text-emerald-700">Saved.</span>}
+          {draft && !saved && <span className="text-sm text-neutral-500">Unsaved changes.</span>}
+        </div>
+      ) : (
+        <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-500">
+          You are signed in as a viewer — these values can be read but not changed.
+        </p>
+      )}
     </form>
   );
 }
