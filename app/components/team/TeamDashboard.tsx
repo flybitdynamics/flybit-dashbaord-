@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import {
   AttendanceRecord,
@@ -144,15 +143,10 @@ export function TeamDashboard() {
   return (
     <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
       <SiteHeader
-        subtitle="Team — salary, attendance and leave"
+        title="Team"
+        subtitle="Salary, attendance and leave"
         actions={
           <>
-            <Link
-              href="/settings"
-              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
-            >
-              Settings
-            </Link>
             <button
               type="button"
               onClick={exportCsv}

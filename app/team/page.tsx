@@ -4,8 +4,6 @@ export const metadata = { title: "Team — FlyBit" };
 
 export default function TeamPage() {
   return (
-    <main className="flex-1">
-      <TeamDashboard />
-    </main>
+    <TeamDashboard />
   );
 }

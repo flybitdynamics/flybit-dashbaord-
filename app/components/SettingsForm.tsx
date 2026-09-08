@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { DEFAULT_SETTINGS, Settings } from "../lib/types";
 import { getServerSnapshot, getSnapshot, subscribe, updateSettings } from "../lib/store";
@@ -141,9 +140,6 @@ export function SettingsForm() {
         >
           Reset to document defaults
         </button>
-        <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-900">
-          Back to the desk
-        </Link>
         {saved && <span className="text-sm text-emerald-700">Saved.</span>}
         {draft && !saved && <span className="text-sm text-neutral-500">Unsaved changes.</span>}
       </div>
