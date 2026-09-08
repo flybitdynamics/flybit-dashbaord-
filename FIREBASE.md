@@ -34,6 +34,9 @@ client data.
 | `shows/{id}`       | One booking                            |
 | `payments/{id}`    | One receipt, linked by `showId`        |
 | `settings/company` | The values the permission docs are filled from |
+| `team/{id}`        | One team member: role, salary, leave allowance |
+| `leaveRequests/{id}` | One leave application, linked by `memberId`   |
+| `attendance/{id}`  | Days worked, one row per member per month      |
 
 ## Configuration
 

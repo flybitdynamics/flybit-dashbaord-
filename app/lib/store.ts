@@ -11,13 +11,7 @@ import {
 } from "firebase/firestore";
 import { DEFAULT_SETTINGS, Payment, Settings, Show } from "./types";
 import { PAYMENTS, SETTINGS_DOC, SHOWS, getDb, isFirebaseConfigured } from "./firebase";
-import {
-  loadPayments,
-  loadShows,
-  newId,
-  sampleData,
-  sortShows,
-} from "./storage";
+import { newId, sortShows } from "./storage";
 
 export interface DeskState {
   shows: Show[];
@@ -164,48 +158,6 @@ export function removePayment(id: string): void {
 
 export function updateSettings(next: Settings): void {
   setDoc(doc(db(), ...SETTINGS_DOC), next).catch(fail);
-}
-
-/* ---------------- first-run helpers ---------------- */
-
-/** Rows still sitting in this browser from before Firestore was wired up. */
-export function browserRowCount(): number {
-  return (loadShows() ?? []).length;
-}
-
-/** Copy this browser's rows into Firestore, ids and all. */
-export function importFromBrowser(): void {
-  (async () => {
-    const instance = db();
-    const localShows = loadShows() ?? [];
-    const localPayments = loadPayments();
-    if (localShows.length === 0) return;
-
-    const batch = writeBatch(instance);
-    for (const { id, ...rest } of localShows) {
-      batch.set(doc(instance, SHOWS, id), rest);
-    }
-    for (const { id, ...rest } of localPayments) {
-      batch.set(doc(instance, PAYMENTS, id), rest);
-    }
-    await batch.commit();
-  })().catch(fail);
-}
-
-/** Example rows, written only when the admin asks for them. */
-export function loadSampleRows(): void {
-  (async () => {
-    const instance = db();
-    const seed = sampleData();
-    const batch = writeBatch(instance);
-    for (const { id, ...rest } of seed.shows) {
-      batch.set(doc(instance, SHOWS, id), rest);
-    }
-    for (const { id, ...rest } of seed.payments) {
-      batch.set(doc(instance, PAYMENTS, id), rest);
-    }
-    await batch.commit();
-  })().catch(fail);
 }
 
 /** Delete every show and payment. */

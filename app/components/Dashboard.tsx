@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import {
@@ -18,16 +17,15 @@ import {
 } from "../lib/types";
 import {
   addPayment,
-  browserRowCount,
   getServerSnapshot,
   getSnapshot,
   removePayment,
   removeShow,
   subscribe,
   upsertShow,
-  importFromBrowser,
 } from "../lib/store";
 import { DocumentsDialog } from "./DocumentsDialog";
+import { SiteHeader } from "./SiteHeader";
 import { FilterState, Filters, defaultFilters } from "./Filters";
 import { OnDeck } from "./OnDeck";
 import { PaymentsDialog } from "./PaymentsDialog";
@@ -45,16 +43,14 @@ export function Dashboard() {
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
 
-  /* The desk is read from localStorage, so it stays null through the
-     server render and arrives on the client without an effect. */
+  /* The desk is read from Firestore, so it stays null through the server
+     render and arrives on the client without an effect. */
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const ready = state !== null;
   const shows = useMemo(() => state?.shows ?? [], [state]);
   const payments = useMemo(() => state?.payments ?? [], [state]);
   const settings = state?.settings;
   const storeError = state?.error ?? null;
-  // localStorage is browser-only; the banner only renders once state exists.
-  const strandedRows = ready && shows.length === 0 ? browserRowCount() : 0;
 
   function handleDelete(show: Show) {
     if (!window.confirm(`Delete the ${show.location || "untitled"} show and its payments?`)) {
@@ -174,46 +170,33 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1700px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-4">
-        <div>
-          <h1>
-            <Image
-              src="/logo-on-light.png"
-              alt="FLYBIT Dynamics"
-              width={666}
-              height={276}
-              priority
-              className="h-9 w-auto"
-            />
-          </h1>
-          <p className="mt-2 text-sm text-neutral-500">
-            Drone show booking desk — shows, payments and MoCA permission paperwork
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/settings"
-            className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
-          >
-            Settings
-          </Link>
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => setDialog({ kind: "show", show: null })}
-            className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-          >
-            + New show
-          </button>
-        </div>
-      </header>
+      <SiteHeader
+        subtitle="Drone show booking desk — shows, payments and MoCA permission paperwork"
+        actions={
+          <>
+            <Link
+              href="/settings"
+              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
+            >
+              Settings
+            </Link>
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => setDialog({ kind: "show", show: null })}
+              className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            >
+              + New show
+            </button>
+          </>
+        }
+      />
 
       {storeError && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">

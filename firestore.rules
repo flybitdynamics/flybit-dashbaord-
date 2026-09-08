@@ -25,6 +25,19 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Team section
+    match /team/{memberId} {
+      allow read, write: if true;
+    }
+
+    match /leaveRequests/{requestId} {
+      allow read, write: if true;
+    }
+
+    match /attendance/{recordId} {
+      allow read, write: if true;
+    }
+
     // Nothing else in this project is used by the desk.
     match /{document=**} {
       allow read, write: if false;
@@ -44,9 +57,12 @@ service cloud.firestore {
 //         && request.auth.token.email.matches('.*@flybitdynamics[.]com');
 //     }
 //
-//     match /shows/{showId}    { allow read, write: if isStaff(); }
-//     match /payments/{payId}  { allow read, write: if isStaff(); }
-//     match /settings/{docId}  { allow read, write: if isStaff(); }
+//     match /shows/{showId}      { allow read, write: if isStaff(); }
+//     match /payments/{payId}    { allow read, write: if isStaff(); }
+//     match /settings/{docId}    { allow read, write: if isStaff(); }
+//     match /team/{memberId}     { allow read, write: if isStaff(); }
+//     match /leaveRequests/{rid} { allow read, write: if isStaff(); }
+//     match /attendance/{aid}    { allow read, write: if isStaff(); }
 //     match /{document=**}     { allow read, write: if false; }
 //   }
 // }

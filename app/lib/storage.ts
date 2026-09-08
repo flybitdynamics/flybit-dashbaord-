@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, Payment, Settings, Show, toISO } from "./types";
+import { DEFAULT_SETTINGS, Payment, Settings, Show } from "./types";
 
 const SHOWS_KEY = "flybit-shows-v2";
 const PAYMENTS_KEY = "flybit-payments-v2";
@@ -80,16 +80,4 @@ export function sortShows(shows: Show[]): Show[] {
       a.showDate.localeCompare(b.showDate) ||
       a.showStartTime.localeCompare(b.showStartTime),
   );
-}
-
-/** Dates are relative to today so the sample sheet always looks live. */
-function offsetDate(days: number): string {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + days);
-  return toISO(date);
-}
-
-export function sampleData(): { shows: Show[]; payments: Payment[] } {
-  return { shows: [], payments: [] };
 }
