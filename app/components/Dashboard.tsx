@@ -25,6 +25,7 @@ import {
 } from "../lib/store";
 import { useAuth } from "./AuthProvider";
 import { DocumentsDialog } from "./DocumentsDialog";
+import { ShowDetailDialog } from "./ShowDetailDialog";
 import { SiteHeader } from "./SiteHeader";
 import { FilterState, Filters, defaultFilters } from "./Filters";
 import { OnDeck } from "./OnDeck";
@@ -35,6 +36,7 @@ import { StatsRail } from "./StatsRail";
 
 type Dialog =
   | { kind: "none" }
+  | { kind: "detail"; show: Show }
   | { kind: "show"; show: Show | null }
   | { kind: "payments"; show: Show }
   | { kind: "documents"; show: Show };
@@ -51,6 +53,7 @@ export function Dashboard() {
   const shows = useMemo(() => state?.shows ?? [], [state]);
   const payments = useMemo(() => state?.payments ?? [], [state]);
   const settings = state?.settings;
+  const expenses = useMemo(() => state?.expenses ?? [], [state]);
   const storeError = state?.error ?? null;
 
   function handleDelete(show: Show) {
@@ -197,7 +200,7 @@ export function Dashboard() {
       />
 
       {storeError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
           {storeError}
         </div>
       )}
@@ -205,7 +208,7 @@ export function Dashboard() {
 
 
       {!ready ? (
-        <div className="flex h-24 items-center justify-center rounded-lg border border-neutral-200 bg-white text-sm text-neutral-500">
+        <div className="flex h-24 items-center justify-center card text-sm text-neutral-500">
           Loading the desk from Firebase…
         </div>
       ) : (
@@ -230,6 +233,7 @@ export function Dashboard() {
               payments={payments}
               total={shows.length}
               canEdit={canEdit}
+              onOpen={(show) => setDialog({ kind: "detail", show })}
               onEdit={(show) => setDialog({ kind: "show", show })}
               onDelete={handleDelete}
               onPayments={(show) => setDialog({ kind: "payments", show })}
@@ -237,6 +241,20 @@ export function Dashboard() {
             />
           </section>
         </>
+      )}
+
+      {dialog.kind === "detail" && (
+        <ShowDetailDialog
+          key={dialog.show.id}
+          show={shows.find((s) => s.id === dialog.show.id) ?? dialog.show}
+          payments={payments}
+          expenses={expenses}
+          canEdit={canEdit}
+          onEdit={() => setDialog({ kind: "show", show: dialog.show })}
+          onPayments={() => setDialog({ kind: "payments", show: dialog.show })}
+          onDocuments={() => setDialog({ kind: "documents", show: dialog.show })}
+          onClose={() => setDialog({ kind: "none" })}
+        />
       )}
 
       {dialog.kind === "show" && (

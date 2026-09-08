@@ -65,10 +65,10 @@ export function PaymentsDialog({
       }
     >
       <div className="max-h-[65vh] overflow-y-auto p-5">
-        <div className="overflow-hidden rounded-lg border border-neutral-200">
+        <div className="overflow-hidden card">
           <table className="w-full border-collapse text-left text-sm">
             <thead>
-              <tr className="border-b border-neutral-200 bg-neutral-50">
+              <tr className="border-b border-neutral-100 bg-neutral-50">
                 {["Date", "Amount", "Mode", "Notes", ""].map((h) => (
                   <th
                     key={h}
@@ -90,7 +90,7 @@ export function PaymentsDialog({
                 </tr>
               ) : (
                 rows.map((payment) => (
-                  <tr key={payment.id} className="border-b border-neutral-100 last:border-b-0">
+                  <tr key={payment.id} className="row-line">
                     <td className="tnum whitespace-nowrap px-3 py-2 font-mono text-xs text-neutral-600">
                       {formatDate(payment.date)}
                     </td>
@@ -120,7 +120,7 @@ export function PaymentsDialog({
         {canEdit && (
         <form
           onSubmit={submit}
-          className="mt-5 grid grid-cols-1 gap-3.5 rounded-lg border border-neutral-200 bg-neutral-50 p-4 sm:grid-cols-2"
+          className="mt-5 grid grid-cols-1 gap-3.5 rounded-xl bg-neutral-50 p-4 sm:grid-cols-2"
         >
           <Field label="Payment received (₹)" htmlFor="p-amount">
             <input

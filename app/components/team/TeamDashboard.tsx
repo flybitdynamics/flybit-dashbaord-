@@ -33,11 +33,13 @@ import { useAuth } from "../AuthProvider";
 import { SiteHeader } from "../SiteHeader";
 import { AttendanceDialog } from "./AttendanceDialog";
 import { LeaveDialog } from "./LeaveDialog";
+import { MemberDetailDialog } from "./MemberDetailDialog";
 import { MemberDialog } from "./MemberDialog";
 import { LeaveMeter, LeaveStatusBadge, LeaveTypeBadge, MemberStatusBadge } from "./TeamBadges";
 
 type Dialog =
   | { kind: "none" }
+  | { kind: "detail"; member: TeamMember }
   | { kind: "member"; member: TeamMember | null }
   | { kind: "leave" }
   | { kind: "attendance" };
@@ -186,20 +188,20 @@ export function TeamDashboard() {
       />
 
       {storeError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
           {storeError}
         </div>
       )}
 
       {!ready ? (
-        <div className="flex h-24 items-center justify-center rounded-lg border border-neutral-200 bg-white text-sm text-neutral-500">
+        <div className="flex h-24 items-center justify-center card text-sm text-neutral-500">
           Loading the team from Firebase…
         </div>
       ) : (
         <>
           <section
             aria-label="Summary"
-            className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-neutral-200 bg-neutral-200 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1"
+            className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1"
           >
             {tiles.map((tile) => (
               <div key={tile.label} className="bg-white px-4 py-3.5">
@@ -226,7 +228,7 @@ export function TeamDashboard() {
             </div>
 
             {requests.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-6 text-sm text-neutral-500">
+              <div className="rounded-xl border border-dashed border-neutral-200 bg-white px-4 py-6 text-sm text-neutral-500">
                 {canEdit ? (
                   <>
                     No leave applied for yet. Use <strong>Apply for leave</strong> above.
@@ -242,7 +244,7 @@ export function TeamDashboard() {
                     {pending.map((request) => (
                       <article
                         key={request.id}
-                        className="rounded-lg border border-amber-200 bg-amber-50/40 p-4"
+                        className="rounded-xl border border-amber-200 bg-amber-50/40 p-4"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -290,11 +292,11 @@ export function TeamDashboard() {
                 )}
 
                 {decided.length > 0 && (
-                  <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+                  <div className="overflow-hidden card">
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[820px] border-collapse text-left">
                         <thead>
-                          <tr className="border-b border-neutral-200 bg-neutral-50">
+                          <tr className="border-b border-neutral-100 bg-neutral-50">
                             {["Member", "Type", "Dates", "Days", "Status", "Decision", ""].map((h) => (
                               <th
                                 key={h}
@@ -309,7 +311,7 @@ export function TeamDashboard() {
                           {decided.map((request) => (
                             <tr
                               key={request.id}
-                              className="border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50"
+                              className="row-line hover:bg-neutral-50"
                             >
                               <td className="px-3 py-2.5 text-sm font-medium text-neutral-900">
                                 {nameOf(request.memberId)}
@@ -374,11 +376,11 @@ export function TeamDashboard() {
               </label>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+            <div className="overflow-hidden card">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1180px] border-collapse text-left">
                   <thead>
-                    <tr className="border-b border-neutral-200 bg-neutral-50">
+                    <tr className="border-b border-neutral-100 bg-neutral-50">
                       {[
                         "Name / role", "Contact", "Joined", "Monthly salary",
                         `Days in ${formatMonth(month).split(" ")[0]}`, "Total days",
@@ -415,7 +417,8 @@ export function TeamDashboard() {
                         return (
                           <tr
                             key={member.id}
-                            className={`border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50 ${
+                            onClick={() => setDialog({ kind: "detail", member })}
+                            className={`row-line cursor-pointer hover:bg-neutral-50 ${
                               member.status === "inactive" ? "text-neutral-500" : ""
                             }`}
                           >
@@ -462,7 +465,10 @@ export function TeamDashboard() {
                             <td className="px-3 py-2.5">
                               <MemberStatusBadge status={member.status} />
                             </td>
-                            <td className="px-3 py-2.5 text-right">
+                            <td
+                              className="px-3 py-2.5 text-right"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               {canEdit && (
                                 <button
                                   type="button"
@@ -482,7 +488,7 @@ export function TeamDashboard() {
               </div>
 
               {payroll > 0 && (
-                <div className="tnum border-t border-neutral-200 bg-neutral-50 px-3 py-2 text-right font-mono text-xs text-neutral-600">
+                <div className="tnum border-t border-neutral-100 bg-neutral-50 px-3 py-2 text-right font-mono text-xs text-neutral-600">
                   Payroll for {formatMonth(month)}:{" "}
                   <span className="font-semibold text-neutral-900">
                     {formatMoney(
@@ -496,10 +502,22 @@ export function TeamDashboard() {
         </>
       )}
 
-      <footer className="border-t border-neutral-200 pt-3 text-xs text-neutral-500">
+      <footer className="border-t border-neutral-100 pt-3 text-xs text-neutral-500">
         Synced to Firebase ({process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}) · Amounts in INR ·
         Paid leave counts against the calendar year
       </footer>
+
+      {dialog.kind === "detail" && (
+        <MemberDetailDialog
+          key={dialog.member.id}
+          member={members.find((m) => m.id === dialog.member.id) ?? dialog.member}
+          requests={requests}
+          attendance={attendance}
+          canEdit={canEdit}
+          onEdit={() => setDialog({ kind: "member", member: dialog.member })}
+          onClose={() => setDialog({ kind: "none" })}
+        />
+      )}
 
       {dialog.kind === "member" && (
         <MemberDialog

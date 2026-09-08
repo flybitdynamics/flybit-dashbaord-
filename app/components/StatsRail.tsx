@@ -65,7 +65,7 @@ export function StatsRail({ shows, payments }: { shows: Show[]; payments: Paymen
        wrap; the last tile fills the short row. */
     <section
       aria-label="Summary"
-      className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-neutral-200 bg-neutral-200 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1"
+      className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1"
     >
       {tiles.map((tile) => (
         <div key={tile.label} className="bg-white px-4 py-3.5">

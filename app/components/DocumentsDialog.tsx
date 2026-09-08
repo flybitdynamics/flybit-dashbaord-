@@ -305,7 +305,7 @@ export function DocumentsDialog({
           </label>
 
           {includeTrialLetter && (
-            <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+            <div className="mt-3 rounded-xl bg-neutral-100/70 p-3">
               <div className="grid gap-3 sm:grid-cols-3">
                 <Field label="Trial date" htmlFor="trial-date">
                   <input
@@ -422,7 +422,7 @@ function Section({
 }) {
   return (
     <section className="mb-5 last:mb-0">
-      <div className="mb-2.5 flex items-baseline justify-between gap-3 border-b border-neutral-200 pb-1.5">
+      <div className="mb-2.5 flex items-baseline justify-between gap-3 border-b border-neutral-100 pb-1.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-600">
           {title}
         </h3>

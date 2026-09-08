@@ -29,7 +29,7 @@ export function OnDeck({ shows, payments }: { shows: Show[]; payments: Payment[]
       </div>
 
       {next.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-neutral-300 bg-white px-4 py-6 text-sm text-neutral-500">
+        <div className="rounded-xl border border-dashed border-neutral-200 bg-white px-4 py-6 text-sm text-neutral-500">
           Nothing on the calendar. Add a booking and the next three shows appear here.
         </div>
       ) : (
@@ -39,7 +39,7 @@ export function OnDeck({ shows, payments }: { shows: Show[]; payments: Payment[]
             return (
               <article
                 key={show.id}
-                className="rounded-lg border border-neutral-200 bg-white p-4"
+                className="card p-4"
               >
                 <div className="tnum flex items-baseline justify-between gap-2 font-mono text-xs text-neutral-500">
                   <span>

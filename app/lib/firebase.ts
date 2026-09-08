@@ -32,4 +32,5 @@ export function getDb(): Firestore | null {
 /** Collection names, in one place. */
 export const SHOWS = "shows";
 export const PAYMENTS = "payments";
+export const EXPENSES = "expenses";
 export const SETTINGS_DOC = ["settings", "company"] as const;

@@ -81,7 +81,7 @@ export function SettingsForm() {
   const settings = draft ?? state?.settings ?? null;
 
   if (!settings) {
-    return <div className="h-40 animate-pulse rounded-lg border border-neutral-200 bg-white" />;
+    return <div className="h-40 animate-pulse card" />;
   }
 
   const set = (key: keyof Settings, value: string) => {
@@ -102,9 +102,9 @@ export function SettingsForm() {
       {GROUPS.map((group) => (
         <section
           key={group.title}
-          className="overflow-hidden rounded-lg border border-neutral-200 bg-white"
+          className="overflow-hidden card"
         >
-          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-neutral-200 bg-neutral-50 px-4 py-2.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-neutral-100 bg-neutral-50 px-4 py-2.5">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
               {group.title}
             </h2>
@@ -148,7 +148,7 @@ export function SettingsForm() {
           {draft && !saved && <span className="text-sm text-neutral-500">Unsaved changes.</span>}
         </div>
       ) : (
-        <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-500">
+        <p className="rounded-xl bg-neutral-100/70 px-3 py-2 text-sm text-neutral-500">
           You are signed in as a viewer — these values can be read but not changed.
         </p>
       )}

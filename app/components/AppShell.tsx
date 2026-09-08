@@ -18,12 +18,6 @@ function initialCollapsed(): boolean {
   }
 }
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-}
-
 const stroke = {
   fill: "none",
   stroke: "currentColor",
@@ -32,13 +26,33 @@ const stroke = {
   strokeLinejoin: "round" as const,
 };
 
-const NAV: NavItem[] = [
+const NAV = [
   {
     href: "/",
     label: "Shows",
     icon: (
       <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
         <path d="M10 3.5 12 7l3.8.6-2.7 2.7.6 3.8L10 12.3 6.3 14.1l.6-3.8L4.2 7.6 8 7z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/calendar",
+    label: "Calendar",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <rect x="2.8" y="4.2" width="14.4" height="13" rx="2" />
+        <path d="M2.8 8.2h14.4M6.6 2.6v3M13.4 2.6v3" />
+      </svg>
+    ),
+  },
+  {
+    href: "/finance",
+    label: "Finance",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <path d="M3 15.2 7.2 10l3.1 3.1L17 6" />
+        <path d="M17 10V6h-4" />
       </svg>
     ),
   },
@@ -86,29 +100,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-1">
       <aside
-        className={`sticky top-0 flex h-screen shrink-0 flex-col border-r border-neutral-200 bg-white transition-[width] duration-200 ${collapsed ? "w-[64px]" : "w-[216px]"
+        className={`sticky top-0 z-20 flex h-screen shrink-0 flex-col border-r border-neutral-100 bg-white transition-[width] duration-200 ${collapsed ? "w-[64px]" : "w-[216px]"
           }`}
       >
         <div
-          className={`flex h-16 shrink-0 items-center border-b border-neutral-200 ${collapsed ? "justify-center px-2" : "justify-between px-4"
+          className={`relative flex h-16 shrink-0 items-center border-b border-neutral-100 ${collapsed ? "justify-center px-2" : "px-4"
             }`}
         >
-          {collapsed ? (
-            <Link href="/" aria-label="FLYBIT Dynamics">
-              <Image src="/icon.png" alt="" width={512} height={512} className="size-7 rounded-md" />
-            </Link>
-          ) : (
-            <Link href="/" aria-label="FLYBIT Dynamics">
+          <Link href="/" aria-label="FLYBIT Dynamics">
+            {collapsed ? (
+              <Image src="/icon.png" alt="" width={512} height={512} className="size-9 rounded-md" />
+            ) : (
               <Image
                 src="/logo-on-light.png"
                 alt="FLYBIT Dynamics"
                 width={666}
                 height={276}
                 priority
-                className="h-6 w-auto"
+                className="h-8 w-auto"
               />
-            </Link>
-          )}
+            )}
+          </Link>
+
+          {/* Sits on the sidebar's edge, so it reads as the handle that opens
+              and closes the panel. */}
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="absolute -right-3 top-1/2 z-30 flex size-6 -translate-y-1/2 items-center justify-center rounded-full bg-white text-neutral-500 shadow-sm ring-1 ring-neutral-200 transition-colors hover:text-neutral-900 hover:ring-neutral-300"
+          >
+            <svg viewBox="0 0 20 20" className="size-3.5" {...stroke}>
+              {collapsed ? <path d="M8 5.5 12.5 10 8 14.5" /> : <path d="M12 5.5 7.5 10 12 14.5" />}
+            </svg>
+          </button>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 p-2" aria-label="Sections">
@@ -121,7 +148,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 title={collapsed ? item.label : undefined}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${collapsed ? "justify-center px-2" : ""
+                className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${collapsed ? "justify-center px-2" : ""
                   } ${active
                     ? "bg-neutral-900 text-white"
                     : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
@@ -136,42 +163,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {!canEdit && (
           <div
-            className={`mx-2 mb-2 rounded-md border border-amber-200 bg-amber-50 text-center text-amber-800 ${
-              collapsed ? "px-1 py-1.5 text-[10px] font-semibold" : "px-2 py-1.5 text-[11px]"
-            }`}
+            className={`mx-2 mb-2 rounded-xl bg-amber-50 text-center text-amber-800 ${collapsed ? "px-1 py-1.5 text-[10px] font-semibold" : "px-2 py-1.5 text-[11px]"
+              }`}
             title="Signed in as a viewer — you can look at everything but not change it"
           >
             {collapsed ? "VIEW" : "View only"}
           </div>
         )}
 
-        <div className="flex flex-col gap-1 border-t border-neutral-200 p-2">
+        <div className="flex flex-col gap-1 border-t border-neutral-100 p-2">
           {!collapsed && user && (
             <div className="px-3 pb-1 pt-1 text-[11px] text-neutral-500">
               Signed in as <span className="font-medium text-neutral-700">{user.username}</span>
             </div>
           )}
-          <button
-            type="button"
-            onClick={toggle}
-            aria-expanded={!collapsed}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 ${collapsed ? "justify-center px-2" : ""
-              }`}
-          >
-            <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
-              <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
-              <path d="M7.8 3.5v13" />
-              {collapsed ? <path d="M11 7.5 13.5 10 11 12.5" /> : <path d="M13.5 7.5 11 10l2.5 2.5" />}
-            </svg>
-            {!collapsed && <span>Collapse</span>}
-          </button>
 
           <button
             type="button"
             onClick={logout}
             title={collapsed ? "Sign out" : undefined}
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 ${collapsed ? "justify-center px-2" : ""
+            className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 ${collapsed ? "justify-center px-2" : ""
               }`}
           >
             <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>

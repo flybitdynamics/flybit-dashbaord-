@@ -44,7 +44,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 font-medium">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 font-medium">
               {error}
             </div>
           )}

@@ -37,6 +37,7 @@ client data.
 | `team/{id}`        | One team member: role, salary, leave allowance |
 | `leaveRequests/{id}` | One leave application, linked by `memberId`   |
 | `attendance/{id}`  | Days worked, one row per member per month      |
+| `expenses/{id}`    | Money out that is not salary or commission     |
 
 ## Configuration
 

@@ -102,14 +102,14 @@ export function AttendanceDialog({
         </div>
 
         {active.length === 0 ? (
-          <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-500">
+          <p className="rounded-xl bg-neutral-100/70 px-3 py-6 text-center text-sm text-neutral-500">
             No active team members yet.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-neutral-200">
+          <div className="overflow-hidden card">
             <table className="w-full border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-neutral-200 bg-neutral-50">
+                <tr className="border-b border-neutral-100 bg-neutral-50">
                   {["Member", "Days present", "Unpaid leave", "Not worked"].map((h) => (
                     <th
                       key={h}
@@ -125,7 +125,7 @@ export function AttendanceDialog({
                   const present = draft[member.id] ?? 0;
                   const unpaid = unpaidLeaveInMonth(member.id, requests, month);
                   return (
-                    <tr key={member.id} className="border-b border-neutral-100 last:border-b-0">
+                    <tr key={member.id} className="row-line">
                       <td className="px-3 py-2">
                         <div className="font-medium text-neutral-900">{member.name}</div>
                         <div className="text-xs text-neutral-500">{member.role}</div>

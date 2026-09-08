@@ -25,6 +25,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /expenses/{expenseId} {
+      allow read, write: if true;
+    }
+
     // Team section
     match /team/{memberId} {
       allow read, write: if true;
@@ -60,6 +64,7 @@ service cloud.firestore {
 //     match /shows/{showId}      { allow read, write: if isStaff(); }
 //     match /payments/{payId}    { allow read, write: if isStaff(); }
 //     match /settings/{docId}    { allow read, write: if isStaff(); }
+//     match /expenses/{eid}      { allow read, write: if isStaff(); }
 //     match /team/{memberId}     { allow read, write: if isStaff(); }
 //     match /leaveRequests/{rid} { allow read, write: if isStaff(); }
 //     match /attendance/{aid}    { allow read, write: if isStaff(); }

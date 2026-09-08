@@ -25,3 +25,27 @@ body {
 .tnum {
   font-variant-numeric: tabular-nums;
 }
+
+/* Surfaces are lifted with a soft shadow rather than outlined, so the page
+   is not a grid of boxes inside boxes. Hairlines are kept only where they
+   separate rows of data. */
+.card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(17, 17, 26, 0.04),
+    0 2px 6px rgba(17, 17, 26, 0.04);
+}
+
+.card-quiet {
+  background: #fff;
+  border-radius: 14px;
+}
+
+.row-line {
+  border-bottom: 1px solid #f1f1f4;
+}
+
+.row-line:last-child {
+  border-bottom: 0;
+}

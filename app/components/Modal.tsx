@@ -66,9 +66,9 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`w-full ${width} rounded-xl border border-neutral-200 bg-white shadow-xl`}
+        className={`w-full ${width} rounded-2xl bg-white shadow-2xl shadow-neutral-900/15`}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-neutral-200 px-5 py-3.5">
+        <div className="flex items-start justify-between gap-4 border-b border-neutral-100 px-5 py-3.5">
           <div>
             <h2 className="text-base font-semibold tracking-tight">{title}</h2>
             {subtitle && <p className="mt-0.5 text-xs text-neutral-500">{subtitle}</p>}
@@ -86,7 +86,7 @@ export function Modal({
         {children}
 
         {footer && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-50 px-5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 bg-neutral-50 px-5 py-3">
             {footer}
           </div>
         )}

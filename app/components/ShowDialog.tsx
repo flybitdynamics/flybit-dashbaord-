@@ -169,7 +169,7 @@ export function ShowDialog({
         </Field>
 
         <Field
-          label="Person"
+          label="Drone Pilot"
           htmlFor="f-person"
           hint="Your point person running this show."
         >
@@ -248,11 +248,10 @@ export function ShowDialog({
               return (
                 <label
                   key={zone}
-                  className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm ${
-                    active
-                      ? zoneActive[zone]
-                      : "border-neutral-300 text-neutral-600 hover:bg-neutral-50"
-                  }`}
+                  className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm ${active
+                    ? zoneActive[zone]
+                    : "border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+                    }`}
                 >
                   <input
                     type="radio"

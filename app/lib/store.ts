@@ -10,12 +10,14 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { DEFAULT_SETTINGS, Payment, Settings, Show } from "./types";
-import { PAYMENTS, SETTINGS_DOC, SHOWS, getDb, isFirebaseConfigured } from "./firebase";
+import { Expense } from "./finance";
+import { EXPENSES, PAYMENTS, SETTINGS_DOC, SHOWS, getDb, isFirebaseConfigured } from "./firebase";
 import { newId, sortShows } from "./storage";
 
 export interface DeskState {
   shows: Show[];
   payments: Payment[];
+  expenses: Expense[];
   settings: Settings;
   /** Set when Firestore refuses or cannot be reached. */
   error: string | null;
@@ -26,9 +28,10 @@ export interface DeskState {
    server render sees null until the browser has data. */
 let shows: Show[] = [];
 let payments: Payment[] = [];
+let expenses: Expense[] = [];
 let settings: Settings = DEFAULT_SETTINGS;
 let error: string | null = null;
-const seen = { shows: false, payments: false, settings: false };
+const seen = { shows: false, payments: false, expenses: false, settings: false };
 
 let state: DeskState | null = null;
 const listeners = new Set<() => void>();
@@ -39,9 +42,10 @@ function emit() {
 }
 
 function publish() {
-  const ready = (seen.shows && seen.payments && seen.settings) || error !== null;
+  const ready =
+    (seen.shows && seen.payments && seen.expenses && seen.settings) || error !== null;
   if (!ready) return;
-  state = { shows: sortShows(shows), payments, settings, error };
+  state = { shows: sortShows(shows), payments, expenses, settings, error };
   emit();
 }
 
@@ -89,6 +93,16 @@ function attach() {
     fail,
   );
 
+  const stopExpenses = onSnapshot(
+    collection(db, EXPENSES),
+    (snap) => {
+      expenses = snap.docs.map((d) => ({ ...(d.data() as Omit<Expense, "id">), id: d.id }));
+      seen.expenses = true;
+      publish();
+    },
+    fail,
+  );
+
   const stopSettings = onSnapshot(
     doc(db, ...SETTINGS_DOC),
     (snap) => {
@@ -104,6 +118,7 @@ function attach() {
   detach = () => {
     stopShows();
     stopPayments();
+    stopExpenses();
     stopSettings();
   };
 }
@@ -154,6 +169,14 @@ export function addPayment(draft: Omit<Payment, "id">): void {
 
 export function removePayment(id: string): void {
   deleteDoc(doc(db(), PAYMENTS, id)).catch(fail);
+}
+
+export function upsertExpense(draft: Omit<Expense, "id">, id: string | null): void {
+  setDoc(doc(db(), EXPENSES, id ?? newId()), draft).catch(fail);
+}
+
+export function removeExpense(id: string): void {
+  deleteDoc(doc(db(), EXPENSES, id)).catch(fail);
 }
 
 export function updateSettings(next: Settings): void {

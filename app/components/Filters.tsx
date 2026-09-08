@@ -74,7 +74,7 @@ export function Filters({
               type="button"
               aria-pressed={active}
               onClick={() => set("zone", option.value)}
-              className={`flex items-center gap-1.5 border-r border-neutral-200 px-3 py-2 text-sm last:border-r-0 ${
+              className={`flex items-center gap-1.5 border-r border-neutral-100 px-3 py-2 text-sm last:border-r-0 ${
                 active ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-50"
               }`}
             >

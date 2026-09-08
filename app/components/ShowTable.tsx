@@ -39,6 +39,7 @@ export function ShowTable({
   payments,
   total,
   canEdit,
+  onOpen,
   onEdit,
   onDelete,
   onPayments,
@@ -48,6 +49,7 @@ export function ShowTable({
   payments: Payment[];
   total: number;
   canEdit: boolean;
+  onOpen: (show: Show) => void;
   onEdit: (show: Show) => void;
   onDelete: (show: Show) => void;
   onPayments: (show: Show) => void;
@@ -56,11 +58,11 @@ export function ShowTable({
   const pendingTotal = shows.reduce((sum, s) => sum + pendingFor(s, payments), 0);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+    <div className="overflow-hidden card">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1500px] border-collapse text-left">
           <thead>
-            <tr className="border-b border-neutral-200 bg-neutral-50">
+            <tr className="border-b border-neutral-100 bg-neutral-50">
               {headers.map((header, i) => (
                 <th
                   key={i}
@@ -98,9 +100,9 @@ export function ShowTable({
                 return (
                   <tr
                     key={show.id}
-                    className={`border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50 ${
-                      dimmed ? "text-neutral-500" : ""
-                    }`}
+                    onClick={() => onOpen(show)}
+                    className={`row-line cursor-pointer hover:bg-neutral-50 ${dimmed ? "text-neutral-500" : ""
+                      }`}
                   >
                     <td className="w-1 py-2 pl-3 pr-0">
                       <ZoneBar zone={show.zone} />
@@ -175,13 +177,16 @@ export function ShowTable({
                     </td>
 
                     <td className="px-3 py-2.5">
-                      <div className="flex justify-end gap-1 whitespace-nowrap">
+                      <div
+                        className="flex justify-end gap-1 whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
                           type="button"
                           onClick={() => onDocuments(show)}
                           className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-100"
                         >
-                          Documents
+                          Permission
                         </button>
                         <button
                           type="button"
@@ -219,7 +224,7 @@ export function ShowTable({
       </div>
 
       {pendingTotal > 0 && (
-        <div className="tnum border-t border-neutral-200 bg-neutral-50 px-3 py-2 text-right font-mono text-xs text-neutral-600">
+        <div className="tnum border-t border-neutral-100 bg-neutral-50 px-3 py-2 text-right font-mono text-xs text-neutral-600">
           Amount pending across these {shows.length} shows:{" "}
           <span className="font-semibold text-neutral-900">{formatMoney(pendingTotal)}</span>
         </div>

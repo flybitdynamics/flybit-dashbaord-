@@ -10,7 +10,7 @@ export function SiteHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-4">
+    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-100 pb-4">
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-neutral-900">{title}</h1>
         <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>
