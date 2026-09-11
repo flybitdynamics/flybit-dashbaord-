@@ -52,7 +52,7 @@ export function PipelineStrip({
         <div className="flex items-center gap-3 text-xs text-neutral-500">
           <button
             type="button"
-            onClick={() => onPick(active === "lost" ? "open" : "lost")}
+            onClick={() => onPick(active === "lost" ? "all" : "lost")}
             className={`hover:text-neutral-900 ${active === "lost" ? "font-semibold text-neutral-900" : ""}`}
           >
             {lost} lost
@@ -60,7 +60,7 @@ export function PipelineStrip({
           <span aria-hidden="true">·</span>
           <button
             type="button"
-            onClick={() => onPick(active === "cancelled" ? "open" : "cancelled")}
+            onClick={() => onPick(active === "cancelled" ? "all" : "cancelled")}
             className={`hover:text-neutral-900 ${active === "cancelled" ? "font-semibold text-neutral-900" : ""}`}
           >
             {cancelled} cancelled
@@ -78,20 +78,17 @@ export function PipelineStrip({
               type="button"
               aria-pressed={selected}
               title={STAGE_HINTS[status]}
-              onClick={() => onPick(selected ? "open" : status)}
-              className={`group relative px-4 py-3.5 text-left transition-colors ${
-                selected ? "bg-neutral-900 text-white" : "bg-white hover:bg-neutral-50"
-              }`}
+              onClick={() => onPick(selected ? "all" : status)}
+              className={`group relative px-4 py-3.5 text-left transition-colors ${selected ? "bg-neutral-900 text-white" : "bg-white hover:bg-neutral-50"
+                }`}
             >
               <div
-                className={`flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider ${
-                  selected ? "text-neutral-300" : "text-neutral-500"
-                }`}
+                className={`flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider ${selected ? "text-neutral-300" : "text-neutral-500"
+                  }`}
               >
                 <span
-                  className={`tnum inline-flex size-4 items-center justify-center rounded-full text-[9px] ${
-                    selected ? "bg-white/15" : "bg-neutral-100"
-                  }`}
+                  className={`tnum inline-flex size-4 items-center justify-center rounded-full text-[9px] ${selected ? "bg-white/15" : "bg-neutral-100"
+                    }`}
                 >
                   {i + 1}
                 </span>

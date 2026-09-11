@@ -8,8 +8,6 @@ import { useAuth } from "./AuthProvider";
 
 const COLLAPSE_KEY = "flybit_sidebar_collapsed";
 
-/** The shell only mounts after AuthProvider has resolved on the client, so
- *  reading localStorage in the initialiser cannot cause a hydration gap. */
 function initialCollapsed(): boolean {
   try {
     return localStorage.getItem(COLLAPSE_KEY) === "1";
@@ -108,6 +106,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { logout, user, canEdit } = useAuth();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   function toggle() {
     setCollapsed((prev) => {
@@ -115,16 +114,122 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       try {
         localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
       } catch {
-        /* the choice just won't be remembered */
+        /* error ignored */
       }
       return next;
     });
   }
 
   return (
-    <div className="flex min-h-screen flex-1">
+    <div className="flex min-h-screen flex-1 flex-col md:flex-row">
+      {/* ---------------- MOBILE TOP BAR (< md) ---------------- */}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-neutral-200 bg-white/95 px-4 backdrop-blur-md md:hidden">
+        <Link href="/" aria-label="FLYBIT Dynamics" className="flex items-center gap-2">
+          <Image
+            src="/logo-on-light.png"
+            alt="FLYBIT Dynamics"
+            width={666}
+            height={276}
+            priority
+            className="h-7 w-auto"
+          />
+        </Link>
+
+        <div className="flex items-center gap-2">
+          {!canEdit && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+              VIEW ONLY
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open navigation menu"
+            className="flex size-9 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100"
+          >
+            <svg viewBox="0 0 20 20" className="size-5" {...stroke}>
+              <path d="M3.5 5h13M3.5 10h13M3.5 15h13" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {/* ---------------- MOBILE DRAWER OVERLAY ---------------- */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div
+            className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setDrawerOpen(false)}
+          />
+
+          <div className="relative z-10 flex w-72 flex-col bg-white p-4 shadow-xl transition-transform">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+              <Image
+                src="/logo-on-light.png"
+                alt="FLYBIT Dynamics"
+                width={666}
+                height={276}
+                priority
+                className="h-6 w-auto"
+              />
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                className="flex size-8 items-center justify-center rounded-md bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900"
+              >
+                ✕
+              </button>
+            </div>
+
+            <nav className="flex flex-1 flex-col gap-1 py-4">
+              {NAV.map((item) => {
+                const active =
+                  item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setDrawerOpen(false)}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active
+                      ? "bg-neutral-900 text-white"
+                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                      }`}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="border-t border-neutral-100 pt-3">
+              {user && (
+                <div className="mb-2 px-1 text-xs text-neutral-500">
+                  Signed in as <span className="font-medium text-neutral-900">{user.username}</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerOpen(false);
+                  logout();
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+              >
+                <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+                  <path d="M12.5 6V4.5a1.5 1.5 0 0 0-1.5-1.5H5a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 5 17h6a1.5 1.5 0 0 0 1.5-1.5V14" />
+                  <path d="M8 10h9M14.5 7.5 17 10l-2.5 2.5" />
+                </svg>
+                <span>Sign out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- DESKTOP SIDEBAR (>= md) ---------------- */}
       <aside
-        className={`sticky top-0 z-20 flex h-screen shrink-0 flex-col border-r border-neutral-100 bg-white transition-[width] duration-200 ${collapsed ? "w-[64px]" : "w-[216px]"
+        className={`sticky top-0 z-20 hidden h-screen shrink-0 flex-col border-r border-neutral-100 bg-white transition-[width] duration-200 md:flex ${collapsed ? "w-[64px]" : "w-[216px]"
           }`}
       >
         <div
@@ -146,8 +251,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </Link>
 
-          {/* Sits on the sidebar's edge, so it reads as the handle that opens
-              and closes the panel. */}
           <button
             type="button"
             onClick={toggle}
@@ -218,7 +321,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1">{children}</main>
+      {/* ---------------- MAIN CONTENT AREA ---------------- */}
+      <main className="min-w-0 flex-1 pb-20 md:pb-6">{children}</main>
+
+      {/* ---------------- FIXED MOBILE BOTTOM NAVIGATION (< md) ---------------- */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 border-t border-neutral-200 bg-white/95 shadow-lg backdrop-blur-md md:hidden">
+        {NAV.filter((item) => !["/pilots", "/team", "/settings"].includes(item.href)).map((item) => {
+          const active =
+            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${active ? "text-neutral-900 font-bold" : "text-neutral-500 hover:text-neutral-800"
+                }`}
+            >
+              <div
+                className={`flex items-center justify-center rounded-full p-1 ${active ? "bg-neutral-900 text-white" : ""
+                  }`}
+              >
+                {item.icon}
+              </div>
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

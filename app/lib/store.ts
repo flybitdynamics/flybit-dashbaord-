@@ -237,10 +237,14 @@ export function setShowStatus(id: string, status: ShowStatus): void {
 export function removeShow(id: string): void {
   (async () => {
     const instance = db();
-    const owned = await getDocs(query(collection(instance, PAYMENTS), where("showId", "==", id)));
+    const [ownedPayments, ownedExpenses] = await Promise.all([
+      getDocs(query(collection(instance, PAYMENTS), where("showId", "==", id))),
+      getDocs(query(collection(instance, EXPENSES), where("showId", "==", id))),
+    ]);
     const batch = writeBatch(instance);
     batch.delete(doc(instance, SHOWS, id));
-    owned.forEach((payment) => batch.delete(payment.ref));
+    ownedPayments.forEach((payment) => batch.delete(payment.ref));
+    ownedExpenses.forEach((expense) => batch.delete(expense.ref));
     await batch.commit();
   })().catch(fail);
 }

@@ -19,6 +19,19 @@ export const metadata: Metadata = {
   title: "FlyBit — Drone Show Dashboard",
   description:
     "Booking desk for drone shows: client, date, fleet size, airspace zone and payment status in one manifest.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FlyBit",
+  },
+};
+
+export const viewport = {
+  themeColor: "#171717",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

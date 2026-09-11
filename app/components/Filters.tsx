@@ -15,7 +15,7 @@ export const defaultFilters: FilterState = {
   query: "",
   zone: "all",
   payment: "all",
-  status: "open",
+  status: "all",
 };
 
 const zoneOptions: { value: Zone | "all"; label: string }[] = [
