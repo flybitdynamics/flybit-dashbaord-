@@ -1,4 +1,4 @@
-import { Payment, Show, todayISO } from "./types";
+import { Payment, Show, isBooked, todayISO } from "./types";
 import { LeaveRequest, TeamMember, payableThisMonth } from "./team";
 
 export type ExpenseCategory =
@@ -60,7 +60,7 @@ export function receivedInMonth(payments: Payment[], month: string): number {
 /** Value of shows scheduled in the month, whether or not it is collected. */
 export function bookedInMonth(shows: Show[], month: string): number {
   return shows
-    .filter((s) => s.showStatus !== "cancelled" && inMonth(s.showDate, month))
+    .filter((s) => isBooked(s) && inMonth(s.showDate, month))
     .reduce((sum, s) => sum + (s.showAmount || 0), 0);
 }
 
@@ -68,7 +68,7 @@ export function bookedInMonth(shows: Show[], month: string): number {
 
 export function commissionInMonth(shows: Show[], month: string): number {
   return shows
-    .filter((s) => s.showStatus !== "cancelled" && inMonth(s.showDate, month))
+    .filter((s) => isBooked(s) && inMonth(s.showDate, month))
     .reduce((sum, s) => sum + (s.commission || 0), 0);
 }
 

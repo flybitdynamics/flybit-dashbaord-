@@ -2,28 +2,42 @@
 
 import { EXPENSE_CATEGORIES, Expense, showMargin } from "../lib/finance";
 import {
+  Client,
   PAYMENT_MODES,
   PAYMENT_STATE_LABELS,
-  PERMISSION_STATUSES,
+  PIPELINE,
   Payment,
+  Pilot,
   SHOW_STATUSES,
+  STAGE_HINTS,
   Show,
+  ShowStatus,
   ZONES,
+  certificateState,
+  contactLabel,
   countdownLabel,
   formatDate,
   formatMoney,
   formatNumber,
   formatTime,
+  isBooked,
   paymentStateOf,
   pendingFor,
+  placeLabel,
 } from "../lib/types";
 import { Modal } from "./Modal";
-import { PermissionLabel, ShowStatusBadge, ZoneBadge } from "./Badges";
+import {
+  CertificateBadge,
+  ClientTypeBadge,
+  PermissionLabel,
+  ShowStatusBadge,
+  ZoneBadge,
+} from "./Badges";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="row-line flex items-baseline justify-between gap-4 py-2">
-      <span className="text-xs text-neutral-500">{label}</span>
+      <span className="shrink-0 text-xs text-neutral-500">{label}</span>
       <span className="text-right text-sm text-neutral-900">{children}</span>
     </div>
   );
@@ -40,29 +54,117 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+type Tone = "primary" | "quiet" | "danger";
+
+/** What can happen next from each stage. */
+const MOVES: Record<ShowStatus, { to: ShowStatus; label: string; tone: Tone }[]> = {
+  inquiry: [
+    { to: "confirmed", label: "Confirm booking", tone: "primary" },
+    { to: "lost", label: "Mark as lost", tone: "danger" },
+  ],
+  confirmed: [
+    { to: "completed", label: "Mark show completed", tone: "primary" },
+    { to: "cancelled", label: "Cancel show", tone: "danger" },
+    { to: "inquiry", label: "Back to inquiry", tone: "quiet" },
+  ],
+  completed: [
+    { to: "closed", label: "Close — fully settled", tone: "primary" },
+    { to: "confirmed", label: "Back to confirmed", tone: "quiet" },
+  ],
+  closed: [{ to: "completed", label: "Reopen", tone: "quiet" }],
+  lost: [{ to: "inquiry", label: "Reopen inquiry", tone: "quiet" }],
+  cancelled: [{ to: "confirmed", label: "Reinstate booking", tone: "quiet" }],
+};
+
+const toneClass: Record<Tone, string> = {
+  primary: "bg-neutral-900 text-white hover:bg-neutral-800",
+  quiet: "bg-neutral-100 text-neutral-700 hover:bg-neutral-200",
+  danger: "bg-white text-red-600 ring-1 ring-red-200 hover:bg-red-50",
+};
+
+/** Inquiry → Confirmed → Completed → Closed, with where this show is. */
+function Stepper({ status }: { status: ShowStatus }) {
+  const exited = status === "lost" || status === "cancelled";
+  const reached = exited
+    ? status === "lost"
+      ? 0
+      : 1
+    : PIPELINE.indexOf(status);
+
+  return (
+    <ol className="flex items-center gap-1.5" aria-label="Pipeline stage">
+      {PIPELINE.map((stage, i) => {
+        const done = i < reached;
+        const current = i === reached && !exited;
+        return (
+          <li key={stage} className="flex flex-1 items-center gap-1.5">
+            <span
+              className={`flex h-7 flex-1 items-center justify-center rounded-lg px-2 text-xs font-medium ${
+                current
+                  ? "bg-neutral-900 text-white"
+                  : done
+                    ? "bg-neutral-200 text-neutral-700"
+                    : "bg-neutral-50 text-neutral-400"
+              } ${exited && i === reached ? "line-through" : ""}`}
+              title={STAGE_HINTS[stage]}
+            >
+              {SHOW_STATUSES[stage]}
+            </span>
+            {i < PIPELINE.length - 1 && (
+              <span aria-hidden="true" className="text-neutral-300">
+                ›
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function ShowDetailDialog({
   show,
+  clients,
+  pilots,
   payments,
   expenses,
   canEdit,
+  onStage,
   onEdit,
   onPayments,
   onDocuments,
   onClose,
 }: {
   show: Show;
+  clients: Client[];
+  pilots: Pilot[];
   payments: Payment[];
   expenses: Expense[];
   canEdit: boolean;
+  onStage: (status: ShowStatus) => void;
   onEdit: () => void;
   onPayments: () => void;
   onDocuments: () => void;
   onClose: () => void;
 }) {
-  const own = payments.filter((p) => p.showId === show.id).sort((a, b) => a.date.localeCompare(b.date));
+  const own = payments
+    .filter((p) => p.showId === show.id)
+    .sort((a, b) => a.date.localeCompare(b.date));
   const linked = expenses.filter((e) => e.showId === show.id);
   const margin = showMargin(show, payments, expenses);
   const pending = pendingFor(show, payments);
+  const client = clients.find((c) => c.id === show.clientId);
+  const crew = pilots.filter((p) => show.pilotIds.includes(p.id));
+  const booked = isBooked(show);
+
+  function move(to: ShowStatus) {
+    if (to === "closed" && pending > 0) {
+      if (!window.confirm(`${formatMoney(pending)} is still pending on this show. Close it anyway?`)) return;
+    }
+    if (to === "lost" && !window.confirm("Mark this inquiry as lost? You can reopen it later.")) return;
+    if (to === "cancelled" && !window.confirm("Cancel this confirmed show? You can reinstate it later.")) return;
+    onStage(to);
+  }
 
   return (
     <Modal
@@ -73,7 +175,13 @@ export function ShowDetailDialog({
       footer={
         <>
           <span className="tnum font-mono text-xs text-neutral-600">
-            {pending > 0 ? `${formatMoney(pending)} still to collect` : "Fully paid"}
+            {!booked
+              ? show.showAmount > 0
+                ? `Quoted ${formatMoney(show.showAmount)}`
+                : "Not quoted yet"
+              : pending > 0
+                ? `${formatMoney(pending)} still to collect`
+                : "Fully paid"}
           </span>
           <div className="ml-auto flex gap-2">
             <button
@@ -103,22 +211,49 @@ export function ShowDetailDialog({
         </>
       }
     >
-      <div className="grid max-h-[65vh] gap-6 overflow-y-auto p-5 sm:grid-cols-2">
-        <Group title="Booking">
-          <Row label="Location">{show.location || "—"}</Row>
-          <Row label="Client">{show.client || "—"}</Row>
-          <Row label="Contact">{show.contact || "—"}</Row>
-          <Row label="Person">{show.person || "—"}</Row>
-          <Row label="B2B">{show.b2b || "Direct"}</Row>
-          <Row label="Booked on">{formatDate(show.bookingDate)}</Row>
-          <Row label="Status">
-            <ShowStatusBadge status={show.showStatus} />
+      <div className="grid max-h-[68vh] gap-6 overflow-y-auto p-5 sm:grid-cols-2">
+        <section className="flex flex-col gap-3 sm:col-span-2">
+          <Stepper status={show.showStatus} />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-neutral-500">
+              <ShowStatusBadge status={show.showStatus} />{" "}
+              <span className="ml-1">{STAGE_HINTS[show.showStatus]}</span>
+            </p>
+            {canEdit && (
+              <div className="flex flex-wrap gap-1.5">
+                {MOVES[show.showStatus].map((m) => (
+                  <button
+                    key={m.to}
+                    type="button"
+                    onClick={() => move(m.to)}
+                    className={`rounded-md px-2.5 py-1.5 text-xs font-medium ${toneClass[m.tone]}`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <Group title="Client & contact">
+          <Row label="Client">
+            <span className="inline-flex items-center gap-1.5">
+              {show.client || "—"}
+              {client && <ClientTypeBadge type={client.type} />}
+            </span>
           </Row>
+          <Row label="Contact">{contactLabel(show) || "—"}</Row>
+          {client?.email && <Row label="Client email">{client.email}</Row>}
+          <Row label="Booked on">{formatDate(show.bookingDate)}</Row>
+          {show.b2b && !client && <Row label="B2B (older record)">{show.b2b}</Row>}
         </Group>
 
-        <Group title="Flight">
-          <Row label="Drones">
-            <span className="tnum font-mono">{formatNumber(show.droneCount)}</span>
+        <Group title="Where">
+          <Row label="Place">{placeLabel(show) || "—"}</Row>
+          <Row label="Venue">{show.venueAddress || "—"}</Row>
+          <Row label="Coordinates">
+            <span className="tnum font-mono text-xs">{show.coordinates || "—"}</span>
           </Row>
           <Row label="Zone">
             <ZoneBadge zone={show.zone} />
@@ -129,24 +264,42 @@ export function ShowDetailDialog({
           <Row label="Permission">
             <PermissionLabel status={show.permission} />
           </Row>
-          <Row label="Venue">{show.venueAddress || "—"}</Row>
-          <Row label="Coordinates">
-            <span className="tnum font-mono text-xs">{show.coordinates || "—"}</span>
+        </Group>
+
+        <Group title="Flight crew">
+          <Row label="Drones">
+            <span className="tnum font-mono">{formatNumber(show.droneCount)}</span>
           </Row>
+          {crew.length === 0 ? (
+            <Row label="Pilots">{show.person || "None assigned"}</Row>
+          ) : (
+            crew.map((pilot, i) => (
+              <Row key={pilot.id} label={i === 0 ? "Pilot (Annexure 3)" : "Pilot"}>
+                <span className="inline-flex items-center gap-2">
+                  {pilot.name}
+                  <CertificateBadge state={certificateState(pilot)} />
+                </span>
+              </Row>
+            ))
+          )}
         </Group>
 
         <Group title="Money">
-          <Row label="Show amount">
+          <Row label={booked ? "Show amount" : "Quoted"}>
             <span className="tnum font-mono">{formatMoney(show.showAmount)}</span>
           </Row>
-          <Row label="Received">
-            <span className="tnum font-mono">{formatMoney(margin.received)}</span>
-          </Row>
-          <Row label="Pending">
-            <span className={`tnum font-mono ${pending > 0 ? "font-semibold" : ""}`}>
-              {formatMoney(pending)}
-            </span>
-          </Row>
+          {booked && (
+            <>
+              <Row label="Received">
+                <span className="tnum font-mono">{formatMoney(margin.received)}</span>
+              </Row>
+              <Row label="Pending">
+                <span className={`tnum font-mono ${pending > 0 ? "font-semibold" : ""}`}>
+                  {formatMoney(pending)}
+                </span>
+              </Row>
+            </>
+          )}
           <Row label="Commission">
             <span className="tnum font-mono">{formatMoney(show.commission)}</span>
           </Row>
@@ -156,7 +309,9 @@ export function ShowDetailDialog({
           <Row label="Margin">
             <span className="tnum font-mono font-semibold">{formatMoney(margin.margin)}</span>
           </Row>
-          <Row label="Payment status">{PAYMENT_STATE_LABELS[paymentStateOf(show, payments)]}</Row>
+          {booked && (
+            <Row label="Payment status">{PAYMENT_STATE_LABELS[paymentStateOf(show, payments)]}</Row>
+          )}
         </Group>
 
         <Group title={`Payments (${own.length})`}>
@@ -172,22 +327,21 @@ export function ShowDetailDialog({
               </div>
             ))
           )}
+        </Group>
 
-          {linked.length > 0 && (
-            <>
-              <h4 className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-                Expenses against this show
-              </h4>
-              {linked.map((expense) => (
-                <div key={expense.id} className="row-line flex items-baseline justify-between gap-3 py-2">
-                  <span className="text-xs text-neutral-500">
-                    {EXPENSE_CATEGORIES[expense.category]}
-                    {expense.description ? ` · ${expense.description}` : ""}
-                  </span>
-                  <span className="tnum font-mono text-sm">{formatMoney(expense.amount)}</span>
-                </div>
-              ))}
-            </>
+        <Group title={`Expenses against this show (${linked.length})`}>
+          {linked.length === 0 ? (
+            <p className="py-2 text-sm text-neutral-500">None recorded.</p>
+          ) : (
+            linked.map((expense) => (
+              <div key={expense.id} className="row-line flex items-baseline justify-between gap-3 py-2">
+                <span className="text-xs text-neutral-500">
+                  {EXPENSE_CATEGORIES[expense.category]}
+                  {expense.description ? ` · ${expense.description}` : ""}
+                </span>
+                <span className="tnum font-mono text-sm">{formatMoney(expense.amount)}</span>
+              </div>
+            ))
           )}
         </Group>
 
@@ -198,11 +352,6 @@ export function ShowDetailDialog({
             </Group>
           </div>
         )}
-
-        <div className="sm:col-span-2 text-[11px] text-neutral-400">
-          Booking status: {SHOW_STATUSES[show.showStatus]} · Permission:{" "}
-          {PERMISSION_STATUSES[show.permission]}
-        </div>
       </div>
     </Modal>
   );

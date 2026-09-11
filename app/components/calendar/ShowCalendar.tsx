@@ -9,6 +9,7 @@ import {
   formatCompactMoney,
   formatNumber,
   formatTime,
+  isBooked,
   pendingFor,
   todayISO,
 } from "../../lib/types";
@@ -62,7 +63,7 @@ export function ShowCalendar({ onOpenShow }: { onOpenShow: (show: Show) => void 
   const byDate = useMemo(() => {
     const map = new Map<string, Show[]>();
     for (const show of shows) {
-      if (show.showStatus === "cancelled") continue;
+      if (show.showStatus === "lost" || show.showStatus === "cancelled") continue;
       const list = map.get(show.showDate) ?? [];
       list.push(show);
       map.set(show.showDate, list);
@@ -74,11 +75,13 @@ export function ShowCalendar({ onOpenShow }: { onOpenShow: (show: Show) => void 
   }, [shows]);
 
   const monthShows = shows.filter(
-    (s) => s.showStatus !== "cancelled" && s.showDate.startsWith(month),
+    (s) => s.showStatus !== "lost" && s.showStatus !== "cancelled" && s.showDate.startsWith(month),
   );
   const drones = monthShows.reduce((sum, s) => sum + (s.droneCount || 0), 0);
-  const value = monthShows.reduce((sum, s) => sum + (s.showAmount || 0), 0);
-  const due = monthShows.reduce((sum, s) => sum + pendingFor(s, payments), 0);
+  const booked = monthShows.filter(isBooked);
+  const inquiries = monthShows.length - booked.length;
+  const value = booked.reduce((sum, s) => sum + (s.showAmount || 0), 0);
+  const due = booked.reduce((sum, s) => sum + pendingFor(s, payments), 0);
 
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
@@ -125,7 +128,7 @@ export function ShowCalendar({ onOpenShow }: { onOpenShow: (show: Show) => void 
         <>
           <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-neutral-100 shadow-sm shadow-neutral-900/5 lg:grid-cols-4">
             {[
-              { label: "Shows", value: String(monthShows.length), note: formatMonth(month) },
+              { label: "Shows", value: String(monthShows.length), note: inquiries ? `${inquiries} still an inquiry` : formatMonth(month) },
               { label: "Drones", value: formatNumber(drones), note: "across the month" },
               { label: "Value", value: formatCompactMoney(value), note: "booked this month" },
               { label: "To collect", value: formatCompactMoney(due), note: "still outstanding" },
@@ -188,8 +191,12 @@ export function ShowCalendar({ onOpenShow }: { onOpenShow: (show: Show) => void 
                           key={show.id}
                           type="button"
                           onClick={() => onOpenShow(show)}
-                          title={`${show.client || show.location} · ${formatNumber(show.droneCount)} drones`}
-                          className="w-full rounded-md bg-neutral-50 px-1.5 py-1 text-left transition-colors hover:bg-neutral-100"
+                          title={`${show.showStatus === "inquiry" ? "Inquiry — " : ""}${show.client || show.location} · ${formatNumber(show.droneCount)} drones`}
+                          className={`w-full rounded-md px-1.5 py-1 text-left transition-colors ${
+                            show.showStatus === "inquiry"
+                              ? "border border-dashed border-neutral-300 bg-white hover:bg-neutral-50"
+                              : "bg-neutral-50 hover:bg-neutral-100"
+                          }`}
                         >
                           <span className="flex items-center gap-1.5">
                             <span className={`size-1.5 shrink-0 rounded-full ${zoneDot[show.zone]}`} />

@@ -4,6 +4,7 @@ import {
   daysAway,
   formatCompactMoney,
   formatNumber,
+  isBooked,
   isOverdue,
   needsClearance,
   pendingFor,
@@ -17,11 +18,12 @@ interface Tile {
 }
 
 export function StatsRail({ shows, payments }: { shows: Show[]; payments: Payment[] }) {
-  const live = shows.filter((s) => s.showStatus !== "cancelled");
+  // Money is only owed on booked shows; an inquiry's figure is a quote.
+  const live = shows.filter(isBooked);
 
-  const upcoming = live.filter((s) => {
+  const upcoming = shows.filter((s) => {
     const days = daysAway(s.showDate);
-    return days !== null && days >= 0 && s.showStatus === "upcoming";
+    return days !== null && days >= 0 && s.showStatus === "confirmed";
   });
 
   const within30 = upcoming.filter((s) => (daysAway(s.showDate) ?? 99) <= 30);
@@ -30,11 +32,11 @@ export function StatsRail({ shows, payments }: { shows: Show[]; payments: Paymen
   const received = live.reduce((sum, s) => sum + receivedFor(s.id, payments), 0);
   const pending = live.reduce((sum, s) => sum + pendingFor(s, payments), 0);
   const overdue = live.filter((s) => isOverdue(s, payments)).length;
-  const flags = live.filter(needsClearance).length;
+  const flags = shows.filter(needsClearance).length;
 
   const tiles: Tile[] = [
     {
-      label: "Upcoming shows",
+      label: "Confirmed ahead",
       value: String(upcoming.length),
       note: `${within30.length} within 30 days`,
     },
@@ -44,7 +46,7 @@ export function StatsRail({ shows, payments }: { shows: Show[]; payments: Paymen
       note: "committed to upcoming shows",
     },
     {
-      label: "Show amount",
+      label: "Booked value",
       value: formatCompactMoney(booked),
       note: `${formatCompactMoney(received)} received`,
     },
@@ -56,7 +58,7 @@ export function StatsRail({ shows, payments }: { shows: Show[]; payments: Paymen
     {
       label: "Permission flags",
       value: String(flags),
-      note: "yellow/red zone, not approved",
+      note: "confirmed, yellow/red zone, not approved",
     },
   ];
 
@@ -65,7 +67,7 @@ export function StatsRail({ shows, payments }: { shows: Show[]; payments: Paymen
        wrap; the last tile fills the short row. */
     <section
       aria-label="Summary"
-      className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1"
+      className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-neutral-100 shadow-sm shadow-neutral-900/5 sm:grid-cols-3 lg:grid-cols-5 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1"
     >
       {tiles.map((tile) => (
         <div key={tile.label} className="bg-white px-4 py-3.5">

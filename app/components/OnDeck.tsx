@@ -15,7 +15,7 @@ export function OnDeck({ shows, payments }: { shows: Show[]; payments: Payment[]
   const next = shows
     .filter((s) => {
       const days = daysAway(s.showDate);
-      return s.showStatus === "upcoming" && days !== null && days >= 0;
+      return s.showStatus === "confirmed" && days !== null && days >= 0;
     })
     .slice(0, 3);
 
@@ -25,12 +25,12 @@ export function OnDeck({ shows, payments }: { shows: Show[]; payments: Payment[]
         <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
           On deck
         </h2>
-        <span className="text-xs text-neutral-500">Next three shows by date</span>
+        <span className="text-xs text-neutral-500">Next three confirmed shows</span>
       </div>
 
       {next.length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-200 bg-white px-4 py-6 text-sm text-neutral-500">
-          Nothing on the calendar. Add a booking and the next three shows appear here.
+          Nothing confirmed ahead. Confirm an inquiry and it appears here.
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

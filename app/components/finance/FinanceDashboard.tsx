@@ -22,7 +22,7 @@ import {
   subscribe as teamSubscribe,
 } from "../../lib/team-store";
 import { formatMonth, payableThisMonth, recentMonths, currentMonth } from "../../lib/team";
-import { formatCompactMoney, formatDate, formatMoney } from "../../lib/types";
+import { formatCompactMoney, formatDate, formatMoney, isBooked } from "../../lib/types";
 import { useAuth } from "../AuthProvider";
 import { SiteHeader } from "../SiteHeader";
 import { ExpenseDialog } from "./ExpenseDialog";
@@ -81,7 +81,7 @@ export function FinanceDashboard() {
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const monthShows = shows.filter(
-    (s) => s.showStatus !== "cancelled" && s.showDate.startsWith(month),
+    (s) => isBooked(s) && s.showDate.startsWith(month),
   );
   const margins = monthShows.map((s) => showMargin(s, payments, expenses));
 

@@ -1,10 +1,11 @@
 import {
-  Settings,
-  Show,
   formatDateDashed,
   formatDateLetter,
   formatDateOrdinal,
   formatTime,
+  Pilot,
+  Settings,
+  Show,
   todayISO,
 } from "./types";
 
@@ -65,7 +66,11 @@ export function fieldsFor(
   show: Show,
   settings: Settings,
   letterDateISO = todayISO(),
+  pilots: Pilot[] = [],
 ): DocumentFields {
+  // Annexure 3 names one remote pilot: the first one assigned to the show,
+  // falling back to the default in Settings.
+  const pilot = pilots.find((p) => show.pilotIds?.includes(p.id));
   const start = formatTime(show.showStartTime);
   const end = formatTime(show.showEndTime);
   const dateLong = formatDateOrdinal(show.showDate);
@@ -83,8 +88,8 @@ export function fieldsFor(
     signatoryTitle: settings.signatoryTitle,
     coordinatorName: settings.coordinatorName,
     coordinatorPhone: settings.coordinatorPhone,
-    pilotName: settings.pilotName,
-    pilotQualification: settings.pilotQualification,
+    pilotName: pilot?.name || settings.pilotName,
+    pilotQualification: pilot?.qualification || settings.pilotQualification,
     previousPermissionNo: settings.previousPermissionNo,
     uin: settings.uin,
     city: show.location,

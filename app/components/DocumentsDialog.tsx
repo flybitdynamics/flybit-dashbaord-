@@ -10,6 +10,7 @@ import {
   missingFields,
 } from "../lib/documents";
 import {
+  Pilot,
   Settings,
   Show,
   formatDateOrdinal,
@@ -78,14 +79,17 @@ interface PdfSupport {
 export function DocumentsDialog({
   show,
   settings,
+  pilots = [],
   onClose,
 }: {
   show: Show;
   settings: Settings;
+  /** The show's first assigned pilot is named in Annexure 3. */
+  pilots?: Pilot[];
   onClose: () => void;
 }) {
   const [fields, setFields] = useState<DocumentFields>(() =>
-    fieldsFor(show, settings, todayISO()),
+    fieldsFor(show, settings, todayISO(), pilots),
   );
   const [chosen, setChosen] = useState<DocumentId[]>(() => DOCUMENTS.map((d) => d.id));
   const [busy, setBusy] = useState(false);

@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { addPayment, getServerSnapshot, getSnapshot, removePayment, subscribe } from "../../lib/store";
+import {
+  addPayment,
+  getServerSnapshot,
+  getSnapshot,
+  removePayment,
+  setShowStatus,
+  subscribe,
+} from "../../lib/store";
 import { Show } from "../../lib/types";
 import { useAuth } from "../AuthProvider";
 import { DocumentsDialog } from "../DocumentsDialog";
@@ -22,7 +29,10 @@ export function CalendarView() {
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const payments = useMemo(() => state?.payments ?? [], [state]);
   const expenses = useMemo(() => state?.expenses ?? [], [state]);
+  const clients = useMemo(() => state?.clients ?? [], [state]);
+  const pilots = useMemo(() => state?.pilots ?? [], [state]);
   const settings = state?.settings;
+  const live = (show: Show) => state?.shows.find((s) => s.id === show.id) ?? show;
 
   return (
     <>
@@ -31,10 +41,13 @@ export function CalendarView() {
       {dialog.kind === "detail" && (
         <ShowDetailDialog
           key={dialog.show.id}
-          show={dialog.show}
+          show={live(dialog.show)}
+          clients={clients}
+          pilots={pilots}
           payments={payments}
           expenses={expenses}
-          canEdit={false}
+          canEdit={canEdit}
+          onStage={(status) => setShowStatus(dialog.show.id, status)}
           onEdit={() => {}}
           onPayments={() => setDialog({ kind: "payments", show: dialog.show })}
           onDocuments={() => setDialog({ kind: "documents", show: dialog.show })}
@@ -57,8 +70,9 @@ export function CalendarView() {
       {dialog.kind === "documents" && settings && (
         <DocumentsDialog
           key={dialog.show.id}
-          show={dialog.show}
+          show={live(dialog.show)}
           settings={settings}
+          pilots={pilots}
           onClose={() => setDialog({ kind: "detail", show: dialog.show })}
         />
       )}

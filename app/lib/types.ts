@@ -1,32 +1,91 @@
 export type Zone = "green" | "yellow" | "red";
-export type ShowStatus = "upcoming" | "completed" | "cancelled";
+
+/** Where a booking sits in the funnel. The main path is
+ *  Inquiry → Confirmed → Completed → Closed. Lost is an inquiry that never
+ *  converted; Cancelled is a confirmed show that was called off. */
+export type ShowStatus = "inquiry" | "confirmed" | "completed" | "closed" | "lost" | "cancelled";
 export type PermissionStatus = "na" | "applied" | "approved" | "rejected";
 export type PaymentMode = "cash" | "upi" | "bank" | "cheque" | "other";
+export type ClientType = "direct" | "b2b";
+export type PilotStatus = "active" | "inactive";
 
-/** One booking. Mirrors the show sheet, plus the fields the MoCA
- *  paperwork needs (venue address and coordinates). */
+/** One booking, from first inquiry to the day it is closed. */
 export interface Show {
   id: string;
+  showStatus: ShowStatus;
+
+  /* Who it is for, and who flies it. */
+  clientId: string;
+  /** Copied from the client record so lists and documents need no lookup.
+   *  Rows from before clients were records carry only this. */
+  client: string;
+  contactName: string;
+  contactPhone: string;
+  pilotIds: string[];
+
+  /* Where. `location` is the district or city — the MoCA letter prints it. */
+  state: string;
   location: string;
+  area: string;
+  venueAddress: string;
+  coordinates: string;
   zone: Zone;
-  droneCount: number;
-  person: string;
+
+  /* When. */
   bookingDate: string;
-  showAmount: number;
   showDate: string;
   showStartTime: string;
   showEndTime: string;
-  showStatus: ShowStatus;
-  /** The B2B partner or agency the booking came through. */
-  b2b: string;
+
+  /* What. */
+  droneCount: number;
+  showAmount: number;
+  commission: number;
   permission: PermissionStatus;
   notes: string;
-  commission: number;
-  /* For the permission documents and the client record. */
-  client: string;
-  contact: string;
-  venueAddress: string;
-  coordinates: string;
+
+  /* Legacy, read-only: from before contacts, pilots and clients were split
+   * out. Shown as a fallback, never written by the form. */
+  contact?: string;
+  person?: string;
+  b2b?: string;
+}
+
+/** Anyone who pays for a show — a direct customer or a B2B agency. */
+export interface Client {
+  id: string;
+  name: string;
+  type: ClientType;
+  contactName: string;
+  contactPhone: string;
+  email: string;
+  gstin: string;
+  state: string;
+  city: string;
+  address: string;
+  notes: string;
+}
+
+/** A remote pilot. The DGCA certificate is what Annexure 3 asks for. */
+export interface Pilot {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  /** DGCA Remote Pilot Certificate number. */
+  rpcNumber: string;
+  rpcValidUntil: string;
+  qualification: string;
+  status: PilotStatus;
+  notes: string;
+}
+
+/** A place a show has been, remembered so the next booking can pick it. */
+export interface Place {
+  id: string;
+  state: string;
+  city: string;
+  area: string;
 }
 
 /** One payment against a show. Mirrors the payment sheet — several rows
@@ -100,9 +159,50 @@ export const ZONES: Record<Zone, { label: string; hint: string }> = {
 };
 
 export const SHOW_STATUSES: Record<ShowStatus, string> = {
-  upcoming: "Upcoming",
+  inquiry: "Inquiry",
+  confirmed: "Confirmed",
   completed: "Completed",
+  closed: "Closed",
+  lost: "Lost",
   cancelled: "Cancelled",
+};
+
+export const STAGE_HINTS: Record<ShowStatus, string> = {
+  inquiry: "A lead — not booked yet",
+  confirmed: "Booked; the show is coming up",
+  completed: "Flown; waiting to be settled",
+  closed: "Paid and done",
+  lost: "An inquiry that did not convert",
+  cancelled: "Confirmed, then called off",
+};
+
+/** The main path, in order. Lost and Cancelled are exits from it. */
+export const PIPELINE: ShowStatus[] = ["inquiry", "confirmed", "completed", "closed"];
+
+/** Counts as business: money is owed on it or has been earned from it. */
+export function isBooked(show: Pick<Show, "showStatus">): boolean {
+  return (
+    show.showStatus === "confirmed" ||
+    show.showStatus === "completed" ||
+    show.showStatus === "closed"
+  );
+}
+
+/** Still needs someone's attention — not closed, lost or cancelled. */
+export function isOpen(show: Pick<Show, "showStatus">): boolean {
+  return (
+    show.showStatus === "inquiry" ||
+    show.showStatus === "confirmed" ||
+    show.showStatus === "completed"
+  );
+}
+
+/** Older rows used a three-value status. */
+const LEGACY_STATUS: Record<string, ShowStatus> = { upcoming: "confirmed" };
+
+export const CLIENT_TYPES: Record<ClientType, string> = {
+  direct: "Direct",
+  b2b: "B2B",
 };
 
 export const PERMISSION_STATUSES: Record<PermissionStatus, string> = {
@@ -120,34 +220,135 @@ export const PAYMENT_MODES: Record<PaymentMode, string> = {
   other: "Other",
 };
 
-/** The person running most shows; the admin can change it per booking. */
+/** The pilot on most shows; pre-selected on a new booking if that pilot
+ *  exists. */
 export const DEFAULT_PERSON = "Jehan Patel";
+
+/** Most shows are in Gujarat, so a new booking starts there. */
+export const DEFAULT_STATE = "Gujarat";
+
+export const INDIAN_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa",
+  "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
+  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland",
+  "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+  "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
+];
 
 export function emptyShow(): Omit<Show, "id"> {
   return {
+    showStatus: "inquiry",
+    clientId: "",
+    client: "",
+    contactName: "",
+    contactPhone: "",
+    pilotIds: [],
+    state: DEFAULT_STATE,
     location: "",
+    area: "",
+    venueAddress: "",
+    coordinates: "",
     zone: "yellow",
-    droneCount: 0,
-    person: DEFAULT_PERSON,
     bookingDate: todayISO(),
-    showAmount: 0,
     showDate: todayISO(),
     showStartTime: "20:00",
     showEndTime: "21:00",
-    showStatus: "upcoming",
-    b2b: "",
+    droneCount: 0,
+    showAmount: 0,
+    commission: 0,
     permission: "na",
     notes: "",
-    commission: 0,
-    client: "",
-    contact: "",
-    venueAddress: "",
-    coordinates: "",
+  };
+}
+
+/** Read a stored show whatever version wrote it: fills fields added since,
+ *  and maps the old status and single contact string forward. */
+export function normalizeShow(id: string, raw: Record<string, unknown>): Show {
+  const base = emptyShow();
+  const merged = { ...base, ...raw } as Show & { showStatus: string };
+  const rawStatus = String(raw.showStatus ?? "");
+  const showStatus: ShowStatus =
+    LEGACY_STATUS[rawStatus] ??
+    (rawStatus in SHOW_STATUSES ? (rawStatus as ShowStatus) : "inquiry");
+
+  return {
+    ...merged,
+    id,
+    showStatus,
+    pilotIds: Array.isArray(raw.pilotIds) ? (raw.pilotIds as string[]) : [],
+    // The old single field nearly always held a phone number.
+    contactPhone: String(raw.contactPhone ?? "") || String(raw.contact ?? ""),
+    contactName: String(raw.contactName ?? ""),
+    state: raw.state === undefined ? "" : String(raw.state),
+    area: String(raw.area ?? ""),
+    clientId: String(raw.clientId ?? ""),
+  };
+}
+
+export function emptyClient(): Omit<Client, "id"> {
+  return {
+    name: "",
+    type: "direct",
+    contactName: "",
+    contactPhone: "",
+    email: "",
+    gstin: "",
+    state: DEFAULT_STATE,
+    city: "",
+    address: "",
+    notes: "",
+  };
+}
+
+export function emptyPilot(): Omit<Pilot, "id"> {
+  return {
+    name: "",
+    phone: "",
+    email: "",
+    rpcNumber: "",
+    rpcValidUntil: "",
+    qualification: "",
+    status: "active",
+    notes: "",
   };
 }
 
 export function emptyPayment(showId: string): Omit<Payment, "id"> {
   return { showId, amount: 0, date: todayISO(), mode: "cash", notes: "" };
+}
+
+/** Stable id for a place, so saving the same one twice does not duplicate it. */
+export function placeId(state: string, city: string, area: string): string {
+  const slug = (v: string) =>
+    v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return [slug(state) || "x", slug(city) || "x", slug(area) || "x"].join("__");
+}
+
+/** "Satellite, Ahmedabad, Gujarat" */
+export function placeLabel(show: Pick<Show, "area" | "location" | "state">): string {
+  return [show.area, show.location, show.state].filter((v) => v && v.trim()).join(", ");
+}
+
+/** "Meera Patel · 98250 00114", falling back to the old single field. */
+export function contactLabel(
+  show: Pick<Show, "contactName" | "contactPhone"> & { contact?: string },
+): string {
+  const bits = [show.contactName, show.contactPhone].filter((v) => v && v.trim());
+  return bits.length ? bits.join(" · ") : show.contact || "";
+}
+
+export type CertificateState = "valid" | "expiring" | "expired" | "missing";
+
+/** Expiring means within 30 days — enough notice to renew before a show. */
+export function certificateState(pilot: Pick<Pilot, "rpcValidUntil">): CertificateState {
+  if (!pilot.rpcValidUntil) return "missing";
+  const days = daysAway(pilot.rpcValidUntil);
+  if (days === null) return "missing";
+  if (days < 0) return "expired";
+  if (days <= 30) return "expiring";
+  return "valid";
 }
 
 /* ---------------- money ---------------- */
@@ -284,22 +485,18 @@ export const PAYMENT_STATE_LABELS: Record<PaymentState, string> = {
   pending: "Payment pending",
 };
 
-/** Show has flown but money is still outstanding. */
+/** A booked show that has flown with money still outstanding. Inquiries
+ *  owe nothing, so they are never overdue. */
 export function isOverdue(show: Show, payments: Payment[]): boolean {
   const days = daysAway(show.showDate);
-  return (
-    show.showStatus !== "cancelled" &&
-    pendingFor(show, payments) > 0 &&
-    days !== null &&
-    days < 0
-  );
+  return isBooked(show) && pendingFor(show, payments) > 0 && days !== null && days < 0;
 }
 
-/** Upcoming show whose airspace needs a permission we do not have yet.
- *  Green-zone shows need none, so they never raise a flag. */
+/** A confirmed, upcoming show whose airspace needs a permission we do not
+ *  have yet. Green-zone shows need none, so they never raise a flag. */
 export function needsClearance(show: Show): boolean {
   const days = daysAway(show.showDate);
-  if (show.showStatus !== "upcoming") return false;
+  if (show.showStatus !== "confirmed") return false;
   if (days === null || days < 0) return false;
   if (show.zone === "green") return false;
   return show.permission !== "approved";

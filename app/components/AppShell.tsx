@@ -47,6 +47,30 @@ const NAV = [
     ),
   },
   {
+    href: "/clients",
+    label: "Clients",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <rect x="3" y="6" width="14" height="10.5" rx="2" />
+        <path d="M7.5 6V4.6a1.1 1.1 0 0 1 1.1-1.1h2.8a1.1 1.1 0 0 1 1.1 1.1V6M3 10.5h14" />
+      </svg>
+    ),
+  },
+  {
+    href: "/pilots",
+    label: "Pilots",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <circle cx="5" cy="5" r="2" />
+        <circle cx="15" cy="5" r="2" />
+        <circle cx="5" cy="15" r="2" />
+        <circle cx="15" cy="15" r="2" />
+        <rect x="8" y="8" width="4" height="4" rx="1" />
+        <path d="M6.4 6.4 8 8M13.6 6.4 12 8M6.4 13.6 8 12M13.6 13.6 12 12" />
+      </svg>
+    ),
+  },
+  {
     href: "/finance",
     label: "Finance",
     icon: (

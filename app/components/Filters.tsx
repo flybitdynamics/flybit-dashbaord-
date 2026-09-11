@@ -1,20 +1,21 @@
 "use client";
 
-import { Zone } from "../lib/types";
+import { SHOW_STATUSES, ShowStatus, Zone } from "../lib/types";
 import { ZoneDot } from "./Badges";
 
 export interface FilterState {
   query: string;
   zone: Zone | "all";
   payment: "all" | "paid" | "partial" | "pending" | "due";
-  status: "active" | "all" | "upcoming" | "completed" | "cancelled";
+  /** "open" = inquiry, confirmed and completed — everything still in play. */
+  status: "open" | "all" | ShowStatus;
 }
 
 export const defaultFilters: FilterState = {
   query: "",
   zone: "all",
   payment: "all",
-  status: "active",
+  status: "open",
 };
 
 const zoneOptions: { value: Zone | "all"; label: string }[] = [
@@ -55,7 +56,7 @@ export function Filters({
           type="search"
           value={filters.query}
           onChange={(e) => set("query", e.target.value)}
-          placeholder="Search client, location, person or B2B"
+          placeholder="Search client, contact, place or pilot"
           aria-label="Search shows"
           className="w-full rounded-md border border-neutral-300 bg-white py-2 pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus-visible:ring-2 focus-visible:ring-neutral-900"
         />
@@ -104,11 +105,13 @@ export function Filters({
         value={filters.status}
         onChange={(e) => set("status", e.target.value as FilterState["status"])}
       >
-        <option value="active">Active shows</option>
-        <option value="all">All statuses</option>
-        <option value="upcoming">Upcoming</option>
-        <option value="completed">Completed</option>
-        <option value="cancelled">Cancelled</option>
+        <option value="open">Open — still in play</option>
+        <option value="all">Every stage</option>
+        {(Object.keys(SHOW_STATUSES) as ShowStatus[]).map((key) => (
+          <option key={key} value={key}>
+            {SHOW_STATUSES[key]}
+          </option>
+        ))}
       </select>
     </div>
   );

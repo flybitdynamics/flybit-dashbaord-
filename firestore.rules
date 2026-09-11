@@ -2,73 +2,178 @@ rules_version = '2';
 
 // Security rules for the FlyBit desk (project flybit-530c5).
 //
-// Paste into Firebase console -> Firestore Database -> Rules -> Publish.
+// Paste into Firebase console → Firestore Database → Rules → Publish.
 //
-// ⚠️  THESE RULES ARE OPEN. Anyone who knows the project id can read and
-//     write every booking, client phone number and payment record. They are
-//     here so the desk works today, not because they are safe.
+// ORDER MATTERS. Publish these only AFTER:
+//   1. Authentication → Get started → enable Email/Password, and
+//   2. the first super admin has been created from the desk's sign-in page.
+// Until the super admin exists these rules still allow that one setup step,
+// but nothing else — so publishing early locks the desk until setup is done.
 //
-//     Swap in the AUTHENTICATED block at the bottom as soon as login exists.
+// How it works: every signed-in person has a document in /users holding
+// their role. Each role is a matrix of module × action in /roles. The rules
+// read both on every write. Passwords are never stored here — they live in
+// Firebase Authentication.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /shows/{showId} {
-      allow read, write: if true;
+    // ---------------------------------------------------------------- who
+
+    function signedIn() {
+      return request.auth != null;
     }
 
-    match /payments/{paymentId} {
-      allow read, write: if true;
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
     }
 
-    match /settings/{docId} {
-      allow read, write: if true;
+    function me() {
+      return get(userPath()).data;
     }
 
-    match /expenses/{expenseId} {
-      allow read, write: if true;
+    function active() {
+      return signedIn() && exists(userPath()) && me().status == "active";
     }
 
-    // Team section
-    match /team/{memberId} {
-      allow read, write: if true;
+    function superAdmin() {
+      return active() && me().superAdmin == true;
     }
 
-    match /leaveRequests/{requestId} {
-      allow read, write: if true;
+    function roleOf() {
+      return get(/databases/$(database)/documents/roles/$(me().roleId)).data;
     }
 
-    match /attendance/{recordId} {
-      allow read, write: if true;
+    // The permission matrix, with a missing entry meaning "no".
+    function can(module, action) {
+      return superAdmin()
+        || (active() && roleOf().permissions.get(module, {}).get(action, false) == true);
     }
 
-    // Nothing else in this project is used by the desk.
+    // ---------------------------------------------------------------- setup
+    // The very first account may make itself super admin, write the starting
+    // roles and the setup marker — in one batch, exactly once.
+
+    function setupPath() {
+      return /databases/$(database)/documents/meta/setup;
+    }
+
+    function isFirstRun() {
+      return signedIn()
+        && !exists(setupPath())
+        && existsAfter(setupPath())
+        && getAfter(userPath()).data.superAdmin == true;
+    }
+
+    match /meta/setup {
+      // Public, so the sign-in page knows whether to offer setup.
+      allow read: if true;
+      allow create: if isFirstRun()
+        && request.resource.data.superAdminUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------- people
+
+    match /users/{userId} {
+      allow read: if (signedIn() && request.auth.uid == userId) || superAdmin();
+
+      allow create: if superAdmin()
+        || (isFirstRun()
+            && request.auth.uid == userId
+            && request.resource.data.status == "active");
+
+      // Only the super admin manages people — and cannot demote or disable
+      // themselves, so the desk can never be left without one.
+      allow update: if superAdmin()
+        && !(userId == request.auth.uid
+             && (request.resource.data.superAdmin != true
+                 || request.resource.data.status != "active"));
+
+      allow delete: if superAdmin() && userId != request.auth.uid;
+    }
+
+    match /roles/{roleId} {
+      allow read: if active();
+      allow write: if superAdmin() || isFirstRun();
+    }
+
+    // ---------------------------------------------------------------- the desk
+    // Reads follow the screens that need the data; writes follow the matrix.
+
+    match /shows/{id} {
+      allow read: if can("shows", "view") || can("calendar", "view")
+        || can("clients", "view") || can("pilots", "view") || can("finance", "view");
+      allow create: if can("shows", "create");
+      allow update: if can("shows", "edit");
+      allow delete: if can("shows", "delete");
+    }
+
+    match /clients/{id} {
+      allow read: if can("clients", "view") || can("shows", "view") || can("finance", "view");
+      allow create: if can("clients", "create");
+      allow update: if can("clients", "edit");
+      allow delete: if can("clients", "delete");
+    }
+
+    match /pilots/{id} {
+      allow read: if can("pilots", "view") || can("shows", "view") || can("calendar", "view");
+      allow create: if can("pilots", "create");
+      allow update: if can("pilots", "edit");
+      allow delete: if can("pilots", "delete");
+    }
+
+    // Remembered automatically whenever a show or client is saved.
+    match /places/{id} {
+      allow read: if active();
+      allow create, update: if can("shows", "create") || can("shows", "edit")
+        || can("clients", "create") || can("clients", "edit");
+      allow delete: if superAdmin();
+    }
+
+    match /payments/{id} {
+      allow read: if can("finance", "view") || can("shows", "view");
+      allow create: if can("finance", "create");
+      allow update: if can("finance", "edit");
+      allow delete: if can("finance", "delete");
+    }
+
+    match /expenses/{id} {
+      allow read: if can("finance", "view");
+      allow create: if can("finance", "create");
+      allow update: if can("finance", "edit");
+      allow delete: if can("finance", "delete");
+    }
+
+    match /settings/{id} {
+      allow read: if can("settings", "view") || can("documents", "view") || can("shows", "view");
+      allow write: if can("settings", "edit");
+    }
+
+    // Team: salaries live here, so finance and team viewers only.
+    match /team/{id} {
+      allow read: if can("team", "view") || can("finance", "view");
+      allow create: if can("team", "create");
+      allow update: if can("team", "edit");
+      allow delete: if can("team", "delete");
+    }
+
+    match /leaveRequests/{id} {
+      allow read: if can("team", "view") || can("finance", "view");
+      allow create: if can("team", "create");
+      allow update: if can("team", "edit");
+      allow delete: if can("team", "delete");
+    }
+
+    match /attendance/{id} {
+      allow read: if can("team", "view") || can("finance", "view");
+      allow create, update: if can("team", "edit") || can("team", "create");
+      allow delete: if can("team", "delete");
+    }
+
+    // Anything else in this project is not the desk's.
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// AUTHENTICATED VERSION — use this once Firebase Auth is wired up.
-// Replace everything above with:
-//
-// service cloud.firestore {
-//   match /databases/{database}/documents {
-//     function isStaff() {
-//       return request.auth != null
-//         && request.auth.token.email_verified == true
-//         && request.auth.token.email.matches('.*@flybitdynamics[.]com');
-//     }
-//
-//     match /shows/{showId}      { allow read, write: if isStaff(); }
-//     match /payments/{payId}    { allow read, write: if isStaff(); }
-//     match /settings/{docId}    { allow read, write: if isStaff(); }
-//     match /expenses/{eid}      { allow read, write: if isStaff(); }
-//     match /team/{memberId}     { allow read, write: if isStaff(); }
-//     match /leaveRequests/{rid} { allow read, write: if isStaff(); }
-//     match /attendance/{aid}    { allow read, write: if isStaff(); }
-//     match /{document=**}     { allow read, write: if false; }
-//   }
-// }
-// ---------------------------------------------------------------------------

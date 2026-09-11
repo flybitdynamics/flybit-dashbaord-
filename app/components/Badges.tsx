@@ -1,8 +1,12 @@
 import {
+  CLIENT_TYPES,
+  CertificateState,
+  ClientType,
   PERMISSION_STATUSES,
   PaymentState,
   PermissionStatus,
   SHOW_STATUSES,
+  STAGE_HINTS,
   ShowStatus,
   Zone,
   ZONES,
@@ -43,18 +47,57 @@ export function ZoneBadge({ zone }: { zone: Zone }) {
   );
 }
 
+/* The pipeline stays in greys so the zone colours keep their meaning: an
+   inquiry is outlined (not real yet), a confirmed show is solid (committed),
+   and the further along a show gets, the quieter it reads. */
 const showStatusStyles: Record<ShowStatus, string> = {
-  upcoming: "bg-neutral-900 text-white ring-neutral-900",
-  completed: "bg-neutral-100 text-neutral-600 ring-neutral-200",
-  cancelled: "bg-neutral-100 text-neutral-400 ring-neutral-200 line-through",
+  inquiry: "bg-white text-neutral-700 ring-neutral-300",
+  confirmed: "bg-neutral-900 text-white ring-neutral-900",
+  completed: "bg-neutral-200 text-neutral-800 ring-neutral-200",
+  closed: "bg-neutral-100 text-neutral-500 ring-neutral-100",
+  lost: "bg-neutral-100 text-neutral-400 ring-neutral-100 line-through",
+  cancelled: "bg-neutral-100 text-neutral-400 ring-neutral-100 line-through",
 };
 
 export function ShowStatusBadge({ status }: { status: ShowStatus }) {
   return (
     <span
+      title={STAGE_HINTS[status]}
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${showStatusStyles[status]}`}
     >
       {SHOW_STATUSES[status]}
+    </span>
+  );
+}
+
+export function ClientTypeBadge({ type }: { type: ClientType }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-md px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ${
+        type === "b2b" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600"
+      }`}
+    >
+      {CLIENT_TYPES[type]}
+    </span>
+  );
+}
+
+const certificateStyles: Record<CertificateState, { label: string; className: string }> = {
+  valid: { label: "Valid", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  expiring: { label: "Expiring", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  expired: { label: "Expired", className: "bg-red-50 text-red-700 ring-red-200" },
+  missing: { label: "Not on file", className: "bg-neutral-100 text-neutral-500 ring-neutral-200" },
+};
+
+/** DGCA remote pilot certificate: the only colour on the Pilots page,
+ *  because an expired one grounds the pilot. */
+export function CertificateBadge({ state }: { state: CertificateState }) {
+  const style = certificateStyles[state];
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${style.className}`}
+    >
+      {style.label}
     </span>
   );
 }

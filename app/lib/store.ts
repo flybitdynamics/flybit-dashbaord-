@@ -1,4 +1,5 @@
 import {
+  arrayRemove,
   collection,
   deleteDoc,
   doc,
@@ -6,18 +7,43 @@ import {
   onSnapshot,
   query,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
-import { DEFAULT_SETTINGS, Payment, Settings, Show } from "./types";
+import {
+  Client,
+  DEFAULT_SETTINGS,
+  Payment,
+  Pilot,
+  Place,
+  Settings,
+  Show,
+  ShowStatus,
+  normalizeShow,
+  placeId,
+} from "./types";
 import { Expense } from "./finance";
-import { EXPENSES, PAYMENTS, SETTINGS_DOC, SHOWS, getDb, isFirebaseConfigured } from "./firebase";
+import {
+  CLIENTS,
+  EXPENSES,
+  PAYMENTS,
+  PILOTS,
+  PLACES,
+  SETTINGS_DOC,
+  SHOWS,
+  getDb,
+  isFirebaseConfigured,
+} from "./firebase";
 import { newId, sortShows } from "./storage";
 
 export interface DeskState {
   shows: Show[];
   payments: Payment[];
   expenses: Expense[];
+  clients: Client[];
+  pilots: Pilot[];
+  places: Place[];
   settings: Settings;
   /** Set when Firestore refuses or cannot be reached. */
   error: string | null;
@@ -29,9 +55,20 @@ export interface DeskState {
 let shows: Show[] = [];
 let payments: Payment[] = [];
 let expenses: Expense[] = [];
+let clients: Client[] = [];
+let pilots: Pilot[] = [];
+let places: Place[] = [];
 let settings: Settings = DEFAULT_SETTINGS;
 let error: string | null = null;
-const seen = { shows: false, payments: false, expenses: false, settings: false };
+const seen = {
+  shows: false,
+  payments: false,
+  expenses: false,
+  clients: false,
+  pilots: false,
+  places: false,
+  settings: false,
+};
 
 let state: DeskState | null = null;
 const listeners = new Set<() => void>();
@@ -42,10 +79,9 @@ function emit() {
 }
 
 function publish() {
-  const ready =
-    (seen.shows && seen.payments && seen.expenses && seen.settings) || error !== null;
+  const ready = Object.values(seen).every(Boolean) || error !== null;
   if (!ready) return;
-  state = { shows: sortShows(shows), payments, expenses, settings, error };
+  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, settings, error };
   emit();
 }
 
@@ -62,6 +98,8 @@ function fail(reason: unknown) {
   publish();
 }
 
+const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name);
+
 function attach() {
   const db = getDb();
   if (!db) {
@@ -72,55 +110,80 @@ function attach() {
     return;
   }
 
-  const stopShows = onSnapshot(
-    collection(db, SHOWS),
-    (snap) => {
-      shows = snap.docs.map((d) => ({ ...(d.data() as Omit<Show, "id">), id: d.id }));
-      seen.shows = true;
-      error = null;
-      publish();
-    },
-    fail,
-  );
+  const stops = [
+    onSnapshot(
+      collection(db, SHOWS),
+      (snap) => {
+        shows = snap.docs.map((d) => normalizeShow(d.id, d.data()));
+        seen.shows = true;
+        error = null;
+        publish();
+      },
+      fail,
+    ),
+    onSnapshot(
+      collection(db, PAYMENTS),
+      (snap) => {
+        payments = snap.docs.map((d) => ({ ...(d.data() as Omit<Payment, "id">), id: d.id }));
+        seen.payments = true;
+        publish();
+      },
+      fail,
+    ),
+    onSnapshot(
+      collection(db, EXPENSES),
+      (snap) => {
+        expenses = snap.docs.map((d) => ({ ...(d.data() as Omit<Expense, "id">), id: d.id }));
+        seen.expenses = true;
+        publish();
+      },
+      fail,
+    ),
+    onSnapshot(
+      collection(db, CLIENTS),
+      (snap) => {
+        clients = snap.docs
+          .map((d) => ({ ...(d.data() as Omit<Client, "id">), id: d.id }))
+          .sort(byName);
+        seen.clients = true;
+        publish();
+      },
+      fail,
+    ),
+    onSnapshot(
+      collection(db, PILOTS),
+      (snap) => {
+        pilots = snap.docs
+          .map((d) => ({ ...(d.data() as Omit<Pilot, "id">), id: d.id }))
+          .sort(byName);
+        seen.pilots = true;
+        publish();
+      },
+      fail,
+    ),
+    onSnapshot(
+      collection(db, PLACES),
+      (snap) => {
+        places = snap.docs.map((d) => ({ ...(d.data() as Omit<Place, "id">), id: d.id }));
+        seen.places = true;
+        publish();
+      },
+      fail,
+    ),
+    onSnapshot(
+      doc(db, ...SETTINGS_DOC),
+      (snap) => {
+        settings = snap.exists()
+          ? { ...DEFAULT_SETTINGS, ...(snap.data() as Partial<Settings>) }
+          : DEFAULT_SETTINGS;
+        seen.settings = true;
+        publish();
+      },
+      fail,
+    ),
+  ];
 
-  const stopPayments = onSnapshot(
-    collection(db, PAYMENTS),
-    (snap) => {
-      payments = snap.docs.map((d) => ({ ...(d.data() as Omit<Payment, "id">), id: d.id }));
-      seen.payments = true;
-      publish();
-    },
-    fail,
-  );
-
-  const stopExpenses = onSnapshot(
-    collection(db, EXPENSES),
-    (snap) => {
-      expenses = snap.docs.map((d) => ({ ...(d.data() as Omit<Expense, "id">), id: d.id }));
-      seen.expenses = true;
-      publish();
-    },
-    fail,
-  );
-
-  const stopSettings = onSnapshot(
-    doc(db, ...SETTINGS_DOC),
-    (snap) => {
-      settings = snap.exists()
-        ? { ...DEFAULT_SETTINGS, ...(snap.data() as Partial<Settings>) }
-        : DEFAULT_SETTINGS;
-      seen.settings = true;
-      publish();
-    },
-    fail,
-  );
-
-  detach = () => {
-    stopShows();
-    stopPayments();
-    stopExpenses();
-    stopSettings();
-  };
+  detach = () => stops.forEach((stop) => stop());
 }
 
 export function subscribe(listener: () => void): () => void {
@@ -146,10 +209,29 @@ function db() {
   return instance;
 }
 
-/* ---------------- writes ---------------- */
+/** Firestore rejects a document holding `undefined`, and legacy show fields
+ *  are optional — so drop any key that is not set. */
+function clean<T extends object>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, v]) => v !== undefined),
+  ) as T;
+}
 
-export function upsertShow(draft: Omit<Show, "id">, id: string | null): void {
-  setDoc(doc(db(), SHOWS, id ?? newId()), draft).catch(fail);
+/* ---------------- shows ---------------- */
+
+/** Saving a show also remembers its place, so the next booking can pick it. */
+export function upsertShow(draft: Omit<Show, "id">, id: string | null): string {
+  const showId = id ?? newId();
+  const body = clean({ ...draft } as Omit<Show, "id"> & { id?: string });
+  delete body.id;
+  setDoc(doc(db(), SHOWS, showId), body).catch(fail);
+  rememberPlace(draft.state, draft.location, draft.area);
+  return showId;
+}
+
+/** Move a show along the pipeline without rewriting the rest of it. */
+export function setShowStatus(id: string, status: ShowStatus): void {
+  updateDoc(doc(db(), SHOWS, id), { showStatus: status }).catch(fail);
 }
 
 export function removeShow(id: string): void {
@@ -163,6 +245,61 @@ export function removeShow(id: string): void {
   })().catch(fail);
 }
 
+/* ---------------- places ---------------- */
+
+export function rememberPlace(state: string, city: string, area: string): void {
+  if (!city.trim()) return;
+  setDoc(doc(db(), PLACES, placeId(state, city, area)), {
+    state: state.trim(),
+    city: city.trim(),
+    area: area.trim(),
+  }).catch(fail);
+}
+
+export function removePlace(id: string): void {
+  deleteDoc(doc(db(), PLACES, id)).catch(fail);
+}
+
+/* ---------------- clients ---------------- */
+
+/** Returns the id straight away so a show being created alongside can point
+ *  at the new client before Firestore confirms. */
+export function upsertClient(draft: Omit<Client, "id">, id: string | null): string {
+  const clientId = id ?? newId();
+  setDoc(doc(db(), CLIENTS, clientId), clean(draft)).catch(fail);
+  if (draft.city.trim()) rememberPlace(draft.state, draft.city, "");
+  return clientId;
+}
+
+/** Shows keep the client's name, so they still read correctly afterwards. */
+export function removeClient(id: string): void {
+  deleteDoc(doc(db(), CLIENTS, id)).catch(fail);
+}
+
+/* ---------------- pilots ---------------- */
+
+export function upsertPilot(draft: Omit<Pilot, "id">, id: string | null): string {
+  const pilotId = id ?? newId();
+  setDoc(doc(db(), PILOTS, pilotId), clean(draft)).catch(fail);
+  return pilotId;
+}
+
+/** Take the pilot off every show they were assigned to, then remove them. */
+export function removePilot(id: string): void {
+  (async () => {
+    const instance = db();
+    const assigned = await getDocs(
+      query(collection(instance, SHOWS), where("pilotIds", "array-contains", id)),
+    );
+    const batch = writeBatch(instance);
+    assigned.forEach((show) => batch.update(show.ref, { pilotIds: arrayRemove(id) }));
+    batch.delete(doc(instance, PILOTS, id));
+    await batch.commit();
+  })().catch(fail);
+}
+
+/* ---------------- payments, expenses, settings ---------------- */
+
 export function addPayment(draft: Omit<Payment, "id">): void {
   setDoc(doc(db(), PAYMENTS, newId()), draft).catch(fail);
 }
@@ -172,7 +309,7 @@ export function removePayment(id: string): void {
 }
 
 export function upsertExpense(draft: Omit<Expense, "id">, id: string | null): void {
-  setDoc(doc(db(), EXPENSES, id ?? newId()), draft).catch(fail);
+  setDoc(doc(db(), EXPENSES, id ?? newId()), clean(draft)).catch(fail);
 }
 
 export function removeExpense(id: string): void {
@@ -183,17 +320,7 @@ export function updateSettings(next: Settings): void {
   setDoc(doc(db(), ...SETTINGS_DOC), next).catch(fail);
 }
 
-/** Delete every show and payment. */
-export function clearAll(): void {
-  (async () => {
-    const instance = db();
-    const [allShows, allPayments] = await Promise.all([
-      getDocs(collection(instance, SHOWS)),
-      getDocs(collection(instance, PAYMENTS)),
-    ]);
-    const batch = writeBatch(instance);
-    allShows.forEach((row) => batch.delete(row.ref));
-    allPayments.forEach((row) => batch.delete(row.ref));
-    await batch.commit();
-  })().catch(fail);
+/** Point older shows at a client record without touching anything else. */
+export function setShowClient(id: string, clientId: string, name: string): void {
+  updateDoc(doc(db(), SHOWS, id), { clientId, client: name }).catch(fail);
 }

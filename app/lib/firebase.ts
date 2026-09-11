@@ -4,7 +4,7 @@ import { Firestore, getFirestore } from "firebase/firestore";
 /** Browser-side values by design — a Firebase web config ships in every
  *  client bundle. The data is protected by firestore.rules, not by hiding
  *  these. */
-const config = {
+export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -13,19 +13,24 @@ const config = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const isFirebaseConfigured = Boolean(config.apiKey && config.projectId);
+export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
 let app: FirebaseApp | null = null;
 let firestore: Firestore | null = null;
 
 /** Null when the environment variables are missing, so the desk can say so
  *  instead of throwing on load. */
-export function getDb(): Firestore | null {
+/** The one app instance shared by Firestore and Authentication. */
+export function getFirebaseApp(): FirebaseApp | null {
   if (!isFirebaseConfigured) return null;
-  if (!firestore) {
-    app = getApps().length ? getApp() : initializeApp(config);
-    firestore = getFirestore(app);
-  }
+  if (!app) app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  return app;
+}
+
+export function getDb(): Firestore | null {
+  const instance = getFirebaseApp();
+  if (!instance) return null;
+  if (!firestore) firestore = getFirestore(instance);
   return firestore;
 }
 
@@ -33,4 +38,11 @@ export function getDb(): Firestore | null {
 export const SHOWS = "shows";
 export const PAYMENTS = "payments";
 export const EXPENSES = "expenses";
+export const CLIENTS = "clients";
+export const PILOTS = "pilots";
+export const PLACES = "places";
+export const USERS = "users";
+export const ROLES = "roles";
+/** Public marker written once the first super admin exists. */
+export const SETUP_DOC = ["meta", "setup"] as const;
 export const SETTINGS_DOC = ["settings", "company"] as const;
