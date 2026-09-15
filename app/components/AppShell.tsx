@@ -101,6 +101,16 @@ const NAV = [
       </svg>
     ),
   },
+  {
+    href: "/logs",
+    label: "Activity Logs",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <circle cx="10" cy="10" r="6.5" />
+        <path d="M10 6v4.5l2.8 2.8" />
+      </svg>
+    ),
+  },
 ];
 
 /** Which permission opens each section. Settings is always there, because
@@ -113,6 +123,7 @@ const MODULE_OF: Record<string, Module | null> = {
   "/finance": "finance",
   "/team": "team",
   "/settings": null,
+  "/logs": null,
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {

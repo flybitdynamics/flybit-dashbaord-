@@ -11,15 +11,20 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import {
+  AuditLog,
   Client,
   DEFAULT_SETTINGS,
+  LogAction,
   Payment,
   Pilot,
   Place,
+  SHOW_STATUSES,
   Settings,
   Show,
   ShowStatus,
+  formatMoney,
   normalizeShow,
   placeId,
 } from "./types";
@@ -27,12 +32,14 @@ import { Expense } from "./finance";
 import {
   CLIENTS,
   EXPENSES,
+  LOGS,
   PAYMENTS,
   PILOTS,
   PLACES,
   SETTINGS_DOC,
   SHOWS,
   getDb,
+  getFirebaseApp,
   isFirebaseConfigured,
 } from "./firebase";
 import { newId, sortShows } from "./storage";
@@ -45,6 +52,7 @@ export interface DeskState {
   pilots: Pilot[];
   places: Place[];
   settings: Settings;
+  logs: AuditLog[];
   /** Set when Firestore refuses or cannot be reached. */
   error: string | null;
 }
@@ -59,6 +67,7 @@ let clients: Client[] = [];
 let pilots: Pilot[] = [];
 let places: Place[] = [];
 let settings: Settings = DEFAULT_SETTINGS;
+let logs: AuditLog[] = [];
 let error: string | null = null;
 const seen = {
   shows: false,
@@ -68,6 +77,7 @@ const seen = {
   pilots: false,
   places: false,
   settings: false,
+  logs: false,
 };
 
 let state: DeskState | null = null;
@@ -81,7 +91,8 @@ function emit() {
 function publish() {
   const ready = Object.values(seen).every(Boolean) || error !== null;
   if (!ready) return;
-  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, settings, error };
+  const sortedLogs = [...logs].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, settings, logs: sortedLogs, error };
   emit();
 }
 
@@ -194,6 +205,15 @@ function attach() {
       },
       denied("settings"),
     ),
+    onSnapshot(
+      collection(db, LOGS),
+      (snap) => {
+        logs = snap.docs.map((d) => ({ ...(d.data() as Omit<AuditLog, "id">), id: d.id }));
+        seen.logs = true;
+        publish();
+      },
+      denied("logs"),
+    ),
   ];
 
   detach = () => stops.forEach((stop) => stop());
@@ -230,24 +250,108 @@ function clean<T extends object>(value: T): T {
   ) as T;
 }
 
+export function recordActivity(
+  action: LogAction,
+  entityType: AuditLog["entityType"],
+  entityId: string,
+  entityTitle: string,
+  details: string,
+): void {
+  try {
+    const appInstance = getFirebaseApp();
+    const authInstance = appInstance ? getAuth(appInstance) : null;
+    const user = authInstance?.currentUser;
+    const logId = newId();
+    const entry: AuditLog = {
+      id: logId,
+      timestamp: new Date().toISOString(),
+      actorUid: user?.uid ?? "system",
+      actorName: user?.displayName || (user?.email ? user.email.split("@")[0] : "System User"),
+      actorEmail: user?.email || "",
+      action,
+      entityType,
+      entityId,
+      entityTitle,
+      details,
+    };
+    setDoc(doc(db(), LOGS, logId), clean(entry)).catch(fail);
+  } catch (err) {
+    console.error("Failed to record activity log", err);
+  }
+}
+
 /* ---------------- shows ---------------- */
 
 /** Saving a show also remembers its place, so the next booking can pick it. */
 export function upsertShow(draft: Omit<Show, "id">, id: string | null): string {
   const showId = id ?? newId();
+  const oldShow = id ? shows.find((s) => s.id === id) : null;
   const body = clean({ ...draft } as Omit<Show, "id"> & { id?: string });
   delete body.id;
   setDoc(doc(db(), SHOWS, showId), body).catch(fail);
   rememberPlace(draft.state, draft.location, draft.area);
+
+  const title = draft.client || draft.location || "Show";
+
+  if (oldShow) {
+    const changes: string[] = [];
+    if (oldShow.showStatus !== draft.showStatus) {
+      changes.push(`Stage: ${SHOW_STATUSES[oldShow.showStatus]} → ${SHOW_STATUSES[draft.showStatus]}`);
+    }
+    if (oldShow.showAmount !== draft.showAmount) {
+      changes.push(`Show amount: ${formatMoney(oldShow.showAmount)} → ${formatMoney(draft.showAmount)}`);
+    }
+    if (oldShow.droneCount !== draft.droneCount) {
+      changes.push(`Drone count: ${oldShow.droneCount || 0} → ${draft.droneCount}`);
+    }
+    if (oldShow.showDate !== draft.showDate) {
+      changes.push(`Show date: ${oldShow.showDate || "—"} → ${draft.showDate}`);
+    }
+    if (oldShow.location !== draft.location) {
+      changes.push(`City: "${oldShow.location || "—"}" → "${draft.location}"`);
+    }
+    if (oldShow.client !== draft.client) {
+      changes.push(`Client: "${oldShow.client || "—"}" → "${draft.client}"`);
+    }
+    if (oldShow.commission !== draft.commission) {
+      changes.push(`Commission: ${formatMoney(oldShow.commission)} → ${formatMoney(draft.commission)}`);
+    }
+
+    const detailText = changes.length > 0
+      ? `Updated show "${title}": ${changes.join("; ")}`
+      : `Updated show "${title}" details`;
+
+    recordActivity("edit", "show", showId, title, detailText);
+  } else {
+    recordActivity(
+      "create",
+      "show",
+      showId,
+      title,
+      `Created new show "${title}" (${SHOW_STATUSES[draft.showStatus]})${draft.showAmount > 0 ? ` with amount ${formatMoney(draft.showAmount)}` : ""}`
+    );
+  }
   return showId;
 }
 
 /** Move a show along the pipeline without rewriting the rest of it. */
 export function setShowStatus(id: string, status: ShowStatus): void {
+  const target = shows.find((s) => s.id === id);
+  const title = target?.client || target?.location || "Show";
+  const oldStatusLabel = target ? SHOW_STATUSES[target.showStatus] : "";
+  const newStatusLabel = SHOW_STATUSES[status];
   updateDoc(doc(db(), SHOWS, id), { showStatus: status }).catch(fail);
+
+  const detailText = oldStatusLabel
+    ? `Changed stage of show "${title}" from ${oldStatusLabel} to ${newStatusLabel}`
+    : `Changed stage of show "${title}" to ${newStatusLabel}`;
+
+  recordActivity("stage_change", "show", id, title, detailText);
 }
 
 export function removeShow(id: string): void {
+  const target = shows.find((s) => s.id === id);
+  const title = target?.client || target?.location || "Show";
   (async () => {
     const instance = db();
     const [ownedPayments, ownedExpenses] = await Promise.all([
@@ -259,6 +363,7 @@ export function removeShow(id: string): void {
     ownedPayments.forEach((payment) => batch.delete(payment.ref));
     ownedExpenses.forEach((expense) => batch.delete(expense.ref));
     await batch.commit();
+    recordActivity("delete", "show", id, title, `Deleted show "${title}"`);
   })().catch(fail);
 }
 
@@ -283,14 +388,38 @@ export function removePlace(id: string): void {
  *  at the new client before Firestore confirms. */
 export function upsertClient(draft: Omit<Client, "id">, id: string | null): string {
   const clientId = id ?? newId();
+  const oldClient = id ? clients.find((c) => c.id === id) : null;
   setDoc(doc(db(), CLIENTS, clientId), clean(draft)).catch(fail);
   if (draft.city.trim()) rememberPlace(draft.state, draft.city, "");
+
+  if (oldClient) {
+    const changes: string[] = [];
+    if (oldClient.name !== draft.name) changes.push(`Name: "${oldClient.name}" → "${draft.name}"`);
+    if (oldClient.type !== draft.type) changes.push(`Type: ${oldClient.type} → ${draft.type}`);
+    recordActivity(
+      "edit",
+      "client",
+      clientId,
+      draft.name,
+      `Updated client "${draft.name}": ${changes.join("; ") || "details updated"}`
+    );
+  } else {
+    recordActivity(
+      "create",
+      "client",
+      clientId,
+      draft.name,
+      `Created client "${draft.name}" (${draft.type === "b2b" ? "B2B" : "Direct"})`
+    );
+  }
   return clientId;
 }
 
 /** Shows keep the client's name, so they still read correctly afterwards. */
 export function removeClient(id: string): void {
+  const target = clients.find((c) => c.id === id);
   deleteDoc(doc(db(), CLIENTS, id)).catch(fail);
+  recordActivity("delete", "client", id, target?.name || "Client", `Deleted client "${target?.name || id}"`);
 }
 
 /* ---------------- pilots ---------------- */
@@ -298,11 +427,19 @@ export function removeClient(id: string): void {
 export function upsertPilot(draft: Omit<Pilot, "id">, id: string | null): string {
   const pilotId = id ?? newId();
   setDoc(doc(db(), PILOTS, pilotId), clean(draft)).catch(fail);
+  recordActivity(
+    id ? "edit" : "create",
+    "pilot",
+    pilotId,
+    draft.name,
+    `${id ? "Updated" : "Added"} pilot "${draft.name}"`
+  );
   return pilotId;
 }
 
 /** Take the pilot off every show they were assigned to, then remove them. */
 export function removePilot(id: string): void {
+  const target = pilots.find((p) => p.id === id);
   (async () => {
     const instance = db();
     const assigned = await getDocs(
@@ -312,29 +449,67 @@ export function removePilot(id: string): void {
     assigned.forEach((show) => batch.update(show.ref, { pilotIds: arrayRemove(id) }));
     batch.delete(doc(instance, PILOTS, id));
     await batch.commit();
+    recordActivity("delete", "pilot", id, target?.name || "Pilot", `Removed pilot "${target?.name || id}"`);
   })().catch(fail);
 }
 
 /* ---------------- payments, expenses, settings ---------------- */
 
 export function addPayment(draft: Omit<Payment, "id">): void {
-  setDoc(doc(db(), PAYMENTS, newId()), draft).catch(fail);
+  const payId = newId();
+  setDoc(doc(db(), PAYMENTS, payId), draft).catch(fail);
+  const target = shows.find((s) => s.id === draft.showId);
+  const title = target?.client || target?.location || "Show";
+  recordActivity(
+    "payment",
+    "payment",
+    payId,
+    title,
+    `Logged payment of ${formatMoney(draft.amount)} (${draft.mode}) for "${title}"`
+  );
 }
 
 export function removePayment(id: string): void {
+  const targetPayment = payments.find((p) => p.id === id);
+  const targetShow = targetPayment ? shows.find((s) => s.id === targetPayment.showId) : null;
+  const title = targetShow?.client || targetShow?.location || "Show";
   deleteDoc(doc(db(), PAYMENTS, id)).catch(fail);
+  recordActivity(
+    "delete",
+    "payment",
+    id,
+    title,
+    `Removed payment of ${targetPayment ? formatMoney(targetPayment.amount) : "amount"} from "${title}"`
+  );
 }
 
 export function upsertExpense(draft: Omit<Expense, "id">, id: string | null): void {
-  setDoc(doc(db(), EXPENSES, id ?? newId()), clean(draft)).catch(fail);
+  const expId = id ?? newId();
+  setDoc(doc(db(), EXPENSES, expId), clean(draft)).catch(fail);
+  recordActivity(
+    id ? "edit" : "expense",
+    "expense",
+    expId,
+    draft.description || "Expense",
+    `${id ? "Updated" : "Logged"} expense of ${formatMoney(draft.amount)} (${draft.category})`
+  );
 }
 
 export function removeExpense(id: string): void {
+  const target = expenses.find((e) => e.id === id);
   deleteDoc(doc(db(), EXPENSES, id)).catch(fail);
+  recordActivity(
+    "delete",
+    "expense",
+    id,
+    target?.description || "Expense",
+    `Removed expense of ${target ? formatMoney(target.amount) : "amount"}`
+  );
 }
 
 export function updateSettings(next: Settings): void {
   setDoc(doc(db(), ...SETTINGS_DOC), next).catch(fail);
+  recordActivity("edit", "settings", "company", "Settings", "Updated company document settings");
 }
 
 /** Point older shows at a client record without touching anything else. */

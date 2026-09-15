@@ -1,15 +1,17 @@
  "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { watchPeople } from "../../lib/auth";
 import { DEFAULT_ROLES, Role, UserProfile } from "../../lib/permissions";
+import { getServerSnapshot, getSnapshot, subscribe } from "../../lib/store";
 import { useAuth } from "../AuthProvider";
 import { SettingsForm } from "../SettingsForm";
+import { ActivityLogsPanel } from "../logs/ActivityLogsPanel";
 import { MyAccount } from "./MyAccount";
 import { PeoplePanel } from "./PeoplePanel";
 import { RolesPanel } from "./RolesPanel";
 
-type Tab = "documents" | "access" | "account";
+type Tab = "documents" | "access" | "account" | "logs";
 
 export function SettingsView() {
   const { isSuperAdmin, can } = useAuth();
@@ -19,6 +21,9 @@ export function SettingsView() {
   const [people, setPeople] = useState<UserProfile[]>([]);
   const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
   const [error, setError] = useState<string | null>(null);
+
+  const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const logs = useMemo(() => state?.logs ?? [], [state]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -69,6 +74,18 @@ export function SettingsView() {
 
         <button
           type="button"
+          onClick={() => setTab("logs")}
+          className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            tab === "logs"
+              ? "border-neutral-900 text-neutral-900"
+              : "border-transparent text-neutral-500 hover:border-neutral-300 hover:text-neutral-700"
+          }`}
+        >
+          Activity Logs
+        </button>
+
+        <button
+          type="button"
           onClick={() => setTab("account")}
           className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
             tab === "account"
@@ -94,6 +111,8 @@ export function SettingsView() {
           <RolesPanel roles={roles} people={people} />
         </div>
       )}
+
+      {tab === "logs" && <ActivityLogsPanel logs={logs} />}
 
       {tab === "account" && <MyAccount />}
     </div>

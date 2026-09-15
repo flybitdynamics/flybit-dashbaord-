@@ -43,6 +43,7 @@ export const PILOTS = "pilots";
 export const PLACES = "places";
 export const USERS = "users";
 export const ROLES = "roles";
+export const LOGS = "audit_logs";
 /** Public marker written once the first super admin exists. */
 export const SETUP_DOC = ["meta", "setup"] as const;
 export const SETTINGS_DOC = ["settings", "company"] as const;

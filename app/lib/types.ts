@@ -99,6 +99,21 @@ export interface Payment {
   notes: string;
 }
 
+export type LogAction = "create" | "edit" | "delete" | "stage_change" | "payment" | "expense" | "user";
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  actorUid: string;
+  actorName: string;
+  actorEmail: string;
+  action: LogAction;
+  entityType: "show" | "client" | "pilot" | "payment" | "expense" | "user" | "settings";
+  entityId: string;
+  entityTitle: string;
+  details: string;
+}
+
 /** Company details the permission documents are filled from. */
 export interface Settings {
   companyName: string;
@@ -377,8 +392,8 @@ export function formatNumber(value: number): string {
 
 /* ---------------- dates ---------------- */
 
-const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const MONTHS_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export function todayISO(): string {
   return toISO(new Date());
