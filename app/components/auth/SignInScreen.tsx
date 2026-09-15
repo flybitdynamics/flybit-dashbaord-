@@ -73,8 +73,6 @@ export function SignInScreen({ state }: { state: AuthState }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [name, setName] = useState("");
-  const [employeeId, setEmployeeId] = useState("");
-  const [phone, setPhone] = useState("");
 
   if (state.status === "no-profile" || state.status === "disabled") return <Blocked state={state} />;
 
@@ -106,7 +104,7 @@ export function SignInScreen({ state }: { state: AuthState }) {
     e.preventDefault();
     if (password.length < 8) return setError("Choose a password of at least 8 characters.");
     if (password !== confirm) return setError("The two passwords do not match.");
-    run(() => setUpSuperAdmin({ name, email, employeeId, phone }, password));
+    run(() => setUpSuperAdmin({ name, email, employeeId: "", phone: "" }, password));
   }
 
   function submitReset(e: React.FormEvent) {
@@ -179,16 +177,7 @@ export function SignInScreen({ state }: { state: AuthState }) {
             <input id="su-email" type="email" required autoComplete="username" className={input} value={email}
               onChange={(e) => setEmail(e.target.value)} placeholder="flybitdynamics@gmail.com" />
           </div>
-          <div>
-            <label htmlFor="su-id" className={label}>Employee ID</label>
-            <input id="su-id" className={input} value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)} placeholder="FB-001" />
-          </div>
-          <div>
-            <label htmlFor="su-phone" className={label}>Phone</label>
-            <input id="su-phone" type="tel" className={input} value={phone}
-              onChange={(e) => setPhone(e.target.value)} placeholder="92274 28262" />
-          </div>
+
           <div>
             <label htmlFor="su-pw" className={label}>Password</label>
             <input id="su-pw" type="password" required minLength={8} autoComplete="new-password" className={input}
