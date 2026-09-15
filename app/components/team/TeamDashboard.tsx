@@ -45,7 +45,10 @@ type Dialog =
   | { kind: "attendance" };
 
 export function TeamDashboard() {
-  const { canEdit } = useAuth();
+  const { can } = useAuth();
+  const canAdd = can("team", "create");
+  const canEdit = can("team", "edit");
+  const canDelete = can("team", "delete");
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
   const [month, setMonth] = useState(currentMonth());
 
@@ -158,7 +161,7 @@ export function TeamDashboard() {
             >
               Export CSV
             </button>
-            {canEdit && (
+            {canAdd && (
               <>
                 <button
                   type="button"
@@ -229,7 +232,7 @@ export function TeamDashboard() {
 
             {requests.length === 0 ? (
               <div className="rounded-xl border border-dashed border-neutral-200 bg-white px-4 py-6 text-sm text-neutral-500">
-                {canEdit ? (
+                {canAdd ? (
                   <>
                     No leave applied for yet. Use <strong>Apply for leave</strong> above.
                   </>
@@ -334,7 +337,7 @@ export function TeamDashboard() {
                                 </p>
                               </td>
                               <td className="px-3 py-2.5 text-right">
-                                {canEdit && (
+                                {canDelete && (
                                   <button
                                     type="button"
                                     onClick={() => removeLeave(request.id)}
@@ -401,7 +404,7 @@ export function TeamDashboard() {
                         <td colSpan={10} className="px-4 py-12 text-center">
                           <p className="font-medium text-neutral-900">No team members yet</p>
                           <p className="mt-1 text-sm text-neutral-500">
-                            {canEdit
+                            {canAdd
                               ? "Add your first person to start tracking salary, attendance and leave."
                               : "Nobody has been added to the team yet."}
                           </p>

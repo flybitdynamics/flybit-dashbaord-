@@ -73,7 +73,8 @@ const LABELS: Record<keyof Settings, string> = {
 };
 
 export function SettingsForm() {
-  const { canEdit } = useAuth();
+  const { can } = useAuth();
+  const canEdit = can("settings", "edit");
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [draft, setDraft] = useState<Settings | null>(null);
   const [saved, setSaved] = useState(false);
@@ -149,7 +150,7 @@ export function SettingsForm() {
         </div>
       ) : (
         <p className="rounded-xl bg-neutral-100/70 px-3 py-2 text-sm text-neutral-500">
-          You are signed in as a viewer — these values can be read but not changed.
+          Your role can read these values but not change them.
         </p>
       )}
     </form>

@@ -20,7 +20,10 @@ type Dialog =
   | { kind: "edit"; pilot: Pilot | null };
 
 export function PilotsDashboard() {
-  const { canEdit } = useAuth();
+  const { can } = useAuth();
+  const canCreate = can("pilots", "create");
+  const canEdit = can("pilots", "edit");
+  const canDelete = can("pilots", "delete");
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
 
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -76,7 +79,7 @@ export function PilotsDashboard() {
         title="Pilots"
         subtitle="Remote pilots, their DGCA certificates, and the shows they fly"
         actions={
-          canEdit && (
+          canCreate && (
             <button
               type="button"
               onClick={() => setDialog({ kind: "edit", pilot: null })}
@@ -220,6 +223,7 @@ export function PilotsDashboard() {
         <PilotDialog
           key={dialog.pilot?.id ?? "new"}
           pilot={dialog.pilot}
+          canDelete={canDelete}
           assignedCount={dialog.pilot ? roster.find((r) => r.pilot.id === dialog.pilot?.id)?.assigned ?? 0 : 0}
           onSave={(draft, id) => {
             upsertPilot(draft, id);

@@ -20,6 +20,7 @@ export function ClientDialog({
   client,
   places,
   showCount,
+  canDelete = true,
   onSave,
   onDelete,
   onClose,
@@ -28,6 +29,7 @@ export function ClientDialog({
   places: Place[];
   /** Shows that name this client, so deleting can say what happens to them. */
   showCount: number;
+  canDelete?: boolean;
   onSave: (draft: Draft, id: string | null) => void;
   onDelete: (client: Client) => void;
   onClose: () => void;
@@ -74,7 +76,7 @@ export function ClientDialog({
             {client ? `${showCount} show${showCount === 1 ? "" : "s"} booked` : "Not on any show yet"}
           </span>
           <div className="ml-auto flex gap-2">
-            {client && (
+            {client && canDelete && (
               <button
                 type="button"
                 onClick={() => onDelete(client)}

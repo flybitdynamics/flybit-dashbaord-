@@ -18,6 +18,7 @@ export function PaymentsDialog({
   show,
   payments,
   canEdit,
+  canRemove = canEdit,
   onAdd,
   onRemove,
   onClose,
@@ -25,6 +26,8 @@ export function PaymentsDialog({
   show: Show;
   payments: Payment[];
   canEdit: boolean;
+  /** Defaults to the same as adding. */
+  canRemove?: boolean;
   onAdd: (draft: Omit<Payment, "id">) => void;
   onRemove: (id: string) => void;
   onClose: () => void;
@@ -100,7 +103,7 @@ export function PaymentsDialog({
                     <td className="px-3 py-2 text-neutral-600">{PAYMENT_MODES[payment.mode]}</td>
                     <td className="px-3 py-2 text-xs text-neutral-500">{payment.notes || "—"}</td>
                     <td className="px-3 py-2 text-right">
-                      {canEdit && (
+                      {canRemove && (
                         <button
                           type="button"
                           onClick={() => onRemove(payment.id)}

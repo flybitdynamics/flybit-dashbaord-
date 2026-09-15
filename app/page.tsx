@@ -1,7 +1,10 @@
 import { Dashboard } from "./components/Dashboard";
+import { RequireAccess } from "./components/RequireAccess";
 
 export default function Page() {
   return (
-    <Dashboard />
+    <RequireAccess module="shows">
+      <Dashboard />
+    </RequireAccess>
   );
 }

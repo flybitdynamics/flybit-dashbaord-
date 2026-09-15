@@ -17,6 +17,7 @@ function toDraft(pilot: Pilot | null): Draft {
 export function PilotDialog({
   pilot,
   assignedCount,
+  canDelete = true,
   onSave,
   onDelete,
   onClose,
@@ -24,6 +25,7 @@ export function PilotDialog({
   pilot: Pilot | null;
   /** Shows the pilot is on, so removing them can say what happens. */
   assignedCount: number;
+  canDelete?: boolean;
   onSave: (draft: Draft, id: string | null) => void;
   onDelete: (pilot: Pilot) => void;
   onClose: () => void;
@@ -59,7 +61,7 @@ export function PilotDialog({
             Certificate <CertificateBadge state={certificateState(draft)} />
           </span>
           <div className="ml-auto flex gap-2">
-            {pilot && (
+            {pilot && canDelete && (
               <button
                 type="button"
                 onClick={() => onDelete(pilot)}

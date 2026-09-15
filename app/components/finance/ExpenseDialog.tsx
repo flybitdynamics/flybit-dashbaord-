@@ -22,6 +22,7 @@ export function ExpenseDialog({
   team = [],
   onSave,
   onDelete,
+  canDelete = true,
   onClose,
 }: {
   expense: Expense | null;
@@ -29,6 +30,7 @@ export function ExpenseDialog({
   team?: TeamMember[];
   onSave: (draft: Draft, id: string | null) => void;
   onDelete: (expense: Expense) => void;
+  canDelete?: boolean;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => toDraft(expense));
@@ -53,7 +55,7 @@ export function ExpenseDialog({
             {draft.amount > 0 ? formatMoney(draft.amount) : "No amount"}
           </span>
           <div className="ml-auto flex gap-2">
-            {expense && (
+            {expense && canDelete && (
               <button
                 type="button"
                 onClick={() => onDelete(expense)}

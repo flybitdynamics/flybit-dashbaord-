@@ -32,7 +32,10 @@ type Dialog =
   | { kind: "edit"; client: Client | null };
 
 export function ClientsDashboard() {
-  const { canEdit } = useAuth();
+  const { can } = useAuth();
+  const canCreate = can("clients", "create");
+  const canEdit = can("clients", "edit");
+  const canDelete = can("clients", "delete");
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ClientType | "all">("all");
@@ -140,7 +143,7 @@ export function ClientsDashboard() {
         title="Clients"
         subtitle="Everyone who books a show — direct customers and B2B agencies, in one list"
         actions={
-          canEdit && (
+          canCreate && (
             <button
               type="button"
               onClick={() => setDialog({ kind: "edit", client: null })}
@@ -168,7 +171,7 @@ export function ClientsDashboard() {
                 name a client that has no record yet (
                 {unlinked.map((g) => `“${g[0].client.trim()}”`).join(", ")}).
               </span>
-              {canEdit && (
+              {canCreate && can("shows", "edit") && (
                 <button
                   type="button"
                   onClick={linkUnlinked}
@@ -326,6 +329,7 @@ export function ClientsDashboard() {
           client={dialog.client}
           places={places}
           showCount={dialog.client ? stats.get(dialog.client.id)?.total ?? 0 : 0}
+          canDelete={canDelete}
           onSave={(draft, id) => {
             upsertClient(draft, id);
             setDialog({ kind: "none" });

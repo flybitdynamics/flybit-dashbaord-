@@ -67,6 +67,19 @@ function fail(reason: unknown) {
   publish();
 }
 
+/** A role that cannot read one collection still gets the rest of the page:
+ *  that listener reports nothing instead of failing everything. */
+function denied(key: keyof typeof seen) {
+  return (reason: unknown) => {
+    if ((reason as { code?: string })?.code === "permission-denied") {
+      seen[key] = true;
+      publish();
+      return;
+    }
+    fail(reason);
+  };
+}
+
 function attach() {
   const db = getDb();
   if (!db) {
@@ -85,7 +98,7 @@ function attach() {
       error = null;
       publish();
     },
-    fail,
+    denied("members"),
   );
 
   const stopLeave = onSnapshot(
@@ -95,7 +108,7 @@ function attach() {
       seen.requests = true;
       publish();
     },
-    fail,
+    denied("requests"),
   );
 
   const stopAttendance = onSnapshot(
@@ -108,7 +121,7 @@ function attach() {
       seen.attendance = true;
       publish();
     },
-    fail,
+    denied("attendance"),
   );
 
   detach = () => {

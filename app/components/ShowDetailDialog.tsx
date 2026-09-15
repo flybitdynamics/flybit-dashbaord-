@@ -129,6 +129,7 @@ export function ShowDetailDialog({
   payments,
   expenses,
   canEdit,
+  canDocuments = true,
   onStage,
   onEdit,
   onPayments,
@@ -141,8 +142,10 @@ export function ShowDetailDialog({
   payments: Payment[];
   expenses: Expense[];
   canEdit: boolean;
+  canDocuments?: boolean;
   onStage: (status: ShowStatus) => void;
-  onEdit: () => void;
+  /** Leave out where this screen has no edit form (the calendar). */
+  onEdit?: () => void;
   onPayments: () => void;
   onDocuments: () => void;
   onClose: () => void;
@@ -184,13 +187,15 @@ export function ShowDetailDialog({
                 : "Fully paid"}
           </span>
           <div className="ml-auto flex gap-2">
-            <button
-              type="button"
-              onClick={onDocuments}
-              className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
-            >
-              Documents
-            </button>
+            {canDocuments && (
+              <button
+                type="button"
+                onClick={onDocuments}
+                className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
+              >
+                Documents
+              </button>
+            )}
             <button
               type="button"
               onClick={onPayments}
@@ -198,7 +203,7 @@ export function ShowDetailDialog({
             >
               Payments
             </button>
-            {canEdit && (
+            {canEdit && onEdit && (
               <button
                 type="button"
                 onClick={onEdit}

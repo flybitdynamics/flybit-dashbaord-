@@ -98,6 +98,19 @@ function fail(reason: unknown) {
   publish();
 }
 
+/** A role that cannot read one collection still gets the rest of the page:
+ *  that listener reports nothing instead of failing everything. */
+function denied(key: keyof typeof seen) {
+  return (reason: unknown) => {
+    if ((reason as { code?: string })?.code === "permission-denied") {
+      seen[key] = true;
+      publish();
+      return;
+    }
+    fail(reason);
+  };
+}
+
 const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name);
 
 function attach() {
@@ -119,7 +132,7 @@ function attach() {
         error = null;
         publish();
       },
-      fail,
+      denied("shows"),
     ),
     onSnapshot(
       collection(db, PAYMENTS),
@@ -128,7 +141,7 @@ function attach() {
         seen.payments = true;
         publish();
       },
-      fail,
+      denied("payments"),
     ),
     onSnapshot(
       collection(db, EXPENSES),
@@ -137,7 +150,7 @@ function attach() {
         seen.expenses = true;
         publish();
       },
-      fail,
+      denied("expenses"),
     ),
     onSnapshot(
       collection(db, CLIENTS),
@@ -148,7 +161,7 @@ function attach() {
         seen.clients = true;
         publish();
       },
-      fail,
+      denied("clients"),
     ),
     onSnapshot(
       collection(db, PILOTS),
@@ -159,7 +172,7 @@ function attach() {
         seen.pilots = true;
         publish();
       },
-      fail,
+      denied("pilots"),
     ),
     onSnapshot(
       collection(db, PLACES),
@@ -168,7 +181,7 @@ function attach() {
         seen.places = true;
         publish();
       },
-      fail,
+      denied("places"),
     ),
     onSnapshot(
       doc(db, ...SETTINGS_DOC),
@@ -179,7 +192,7 @@ function attach() {
         seen.settings = true;
         publish();
       },
-      fail,
+      denied("settings"),
     ),
   ];
 

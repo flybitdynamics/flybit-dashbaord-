@@ -46,7 +46,11 @@ type Dialog =
   | { kind: "documents"; show: Show };
 
 export function Dashboard() {
-  const { canEdit } = useAuth();
+  const { can } = useAuth();
+  const canCreate = can("shows", "create");
+  const canEditShow = can("shows", "edit");
+  const canDeleteShow = can("shows", "delete");
+  const canDocuments = can("documents", "view");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
 
@@ -215,7 +219,7 @@ export function Dashboard() {
             >
               Export CSV
             </button>
-            {canEdit && (
+            {canCreate && (
               <button
                 type="button"
                 onClick={() => setDialog({ kind: "show", show: null })}
@@ -263,7 +267,9 @@ export function Dashboard() {
               clients={clients}
               pilots={pilots}
               total={shows.length}
-              canEdit={canEdit}
+              canEdit={canEditShow}
+              canDelete={canDeleteShow}
+              canDocuments={canDocuments}
               onOpen={(show) => setDialog({ kind: "detail", show })}
               onEdit={(show) => setDialog({ kind: "show", show })}
               onDelete={handleDelete}
@@ -282,7 +288,8 @@ export function Dashboard() {
           pilots={pilots}
           payments={payments}
           expenses={expenses}
-          canEdit={canEdit}
+          canEdit={canEditShow}
+          canDocuments={canDocuments}
           onStage={(status) => setShowStatus(dialog.show.id, status)}
           onEdit={() => setDialog({ kind: "show", show: live(dialog.show) })}
           onPayments={() => setDialog({ kind: "payments", show: dialog.show })}
@@ -298,6 +305,7 @@ export function Dashboard() {
           clients={clients}
           pilots={pilots}
           places={places}
+          canCreateClient={can("clients", "create")}
           onCreateClient={(draft) => upsertClient(draft, null)}
           onSave={(draft, id) => {
             upsertShow(draft, id);
@@ -313,7 +321,8 @@ export function Dashboard() {
           key={dialog.show.id}
           show={live(dialog.show)}
           payments={payments}
-          canEdit={canEdit}
+          canEdit={can("finance", "create")}
+          canRemove={can("finance", "delete")}
           onAdd={addPayment}
           onRemove={removePayment}
           onClose={() => setDialog({ kind: "none" })}

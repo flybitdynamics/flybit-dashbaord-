@@ -214,7 +214,7 @@ export async function signIn(email: string, password: string): Promise<void> {
  *  memory for the next one. */
 export async function signOut(): Promise<void> {
   await firebaseSignOut(authInstance());
-  if (typeof window !== "undefined") window.location.assign("/");
+  if (typeof window !== "undefined") window.location.reload();
 }
 
 export async function sendReset(email: string): Promise<void> {

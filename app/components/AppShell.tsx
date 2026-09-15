@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { Module } from "../lib/permissions";
 import { useAuth } from "./AuthProvider";
 
 const COLLAPSE_KEY = "flybit_sidebar_collapsed";
@@ -102,9 +103,26 @@ const NAV = [
   },
 ];
 
+/** Which permission opens each section. Settings is always there, because
+ *  My account lives in it. */
+const MODULE_OF: Record<string, Module | null> = {
+  "/": "shows",
+  "/calendar": "calendar",
+  "/clients": "clients",
+  "/pilots": "pilots",
+  "/finance": "finance",
+  "/team": "team",
+  "/settings": null,
+};
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { logout, user, canEdit } = useAuth();
+  const { logout, profile, role, isSuperAdmin, can, canEdit } = useAuth();
+  const nav = NAV.filter((item) => {
+    const section = MODULE_OF[item.href];
+    return !section || can(section, "view");
+  });
+  const roleLabel = isSuperAdmin ? "Super admin" : role?.name ?? "No role";
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -182,7 +200,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
 
             <nav className="flex flex-1 flex-col gap-1 py-4">
-              {NAV.map((item) => {
+              {nav.map((item) => {
                 const active =
                   item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                 return (
@@ -203,9 +221,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </nav>
 
             <div className="border-t border-neutral-100 pt-3">
-              {user && (
+              {profile && (
                 <div className="mb-2 px-1 text-xs text-neutral-500">
-                  Signed in as <span className="font-medium text-neutral-900">{user.username}</span>
+                  Signed in as <span className="font-medium text-neutral-900">{profile.name}</span>
+                  <span className="block text-[11px] text-neutral-400">{roleLabel}</span>
                 </div>
               )}
               <button
@@ -266,7 +285,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 p-2" aria-label="Sections">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
@@ -292,16 +311,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div
             className={`mx-2 mb-2 rounded-xl bg-amber-50 text-center text-amber-800 ${collapsed ? "px-1 py-1.5 text-[10px] font-semibold" : "px-2 py-1.5 text-[11px]"
               }`}
-            title="Signed in as a viewer — you can look at everything but not change it"
+            title="Your role can look but not change anything"
           >
             {collapsed ? "VIEW" : "View only"}
           </div>
         )}
 
         <div className="flex flex-col gap-1 border-t border-neutral-100 p-2">
-          {!collapsed && user && (
+          {!collapsed && profile && (
             <div className="px-3 pb-1 pt-1 text-[11px] text-neutral-500">
-              Signed in as <span className="font-medium text-neutral-700">{user.username}</span>
+              Signed in as <span className="font-medium text-neutral-700">{profile.name}</span>
+              <span className="block text-neutral-400">{roleLabel}</span>
             </div>
           )}
 
@@ -326,7 +346,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ---------------- FIXED MOBILE BOTTOM NAVIGATION (< md) ---------------- */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 border-t border-neutral-200 bg-white/95 shadow-lg backdrop-blur-md md:hidden">
-        {NAV.filter((item) => !["/pilots", "/team", "/settings"].includes(item.href)).map((item) => {
+        {nav.filter((item) => !["/pilots", "/team", "/settings"].includes(item.href)).map((item) => {
           const active =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (

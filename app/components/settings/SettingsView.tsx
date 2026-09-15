@@ -12,15 +12,16 @@ import { RolesPanel } from "./RolesPanel";
 type Tab = "documents" | "access" | "account";
 
 export function SettingsView() {
-  const { isSuperAdmin, canEdit } = useAuth();
-  const [tab, setTab] = useState<Tab>("documents");
+  const { isSuperAdmin, can } = useAuth();
+  const canSeeDefaults = can("settings", "view");
+  const [tab, setTab] = useState<Tab>(canSeeDefaults ? "documents" : "account");
 
   const [people, setPeople] = useState<UserProfile[]>([]);
   const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isSuperAdmin && !canEdit) return;
+    if (!isSuperAdmin) return;
 
     const stop = watchPeople(
       (nextPeople) => setPeople(nextPeople),
@@ -29,12 +30,13 @@ export function SettingsView() {
     );
 
     return () => stop();
-  }, [isSuperAdmin, canEdit]);
+  }, [isSuperAdmin]);
 
   return (
     <div className="flex flex-col gap-6">
       {/* Settings Tab Navigation Bar */}
       <div className="flex border-b border-neutral-200">
+        {canSeeDefaults && (
         <button
           type="button"
           onClick={() => setTab("documents")}
@@ -46,8 +48,9 @@ export function SettingsView() {
         >
           Document Defaults
         </button>
+        )}
 
-        {(isSuperAdmin || canEdit) && (
+        {isSuperAdmin && (
           <button
             type="button"
             onClick={() => setTab("access")}
@@ -78,9 +81,9 @@ export function SettingsView() {
       </div>
 
       {/* Tab Contents */}
-      {tab === "documents" && <SettingsForm />}
+      {tab === "documents" && canSeeDefaults && <SettingsForm />}
 
-      {tab === "access" && (isSuperAdmin || canEdit) && (
+      {tab === "access" && isSuperAdmin && (
         <div className="flex flex-col gap-6">
           {error && (
             <div className="rounded-xl bg-red-50 p-3 text-xs text-red-700 font-medium">

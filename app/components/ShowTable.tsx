@@ -50,6 +50,8 @@ export function ShowTable({
   pilots,
   total,
   canEdit,
+  canDelete,
+  canDocuments,
   onOpen,
   onEdit,
   onDelete,
@@ -62,6 +64,8 @@ export function ShowTable({
   pilots: Pilot[];
   total: number;
   canEdit: boolean;
+  canDelete: boolean;
+  canDocuments: boolean;
   onOpen: (show: Show) => void;
   onEdit: (show: Show) => void;
   onDelete: (show: Show) => void;
@@ -111,13 +115,13 @@ export function ShowTable({
                 const state = paymentStateOf(show, payments);
                 const overdue = isOverdue(show, payments);
                 const client = clients.find((c) => c.id === show.clientId);
-                const crew = pilots.filter((p) => show.pilotIds.includes(p.id));
                 const dimmed =
                   show.showStatus === "closed" ||
                   show.showStatus === "lost" ||
                   show.showStatus === "cancelled";
                 const place = placeLabel(show);
                 const contact = contactLabel(show);
+                const crew = pilots.filter((p) => show.pilotIds.includes(p.id));
 
                 return (
                   <tr
@@ -169,6 +173,11 @@ export function ShowTable({
                       <div className="tnum font-mono text-xs text-neutral-500">
                         {formatTime(show.showStartTime)}–{formatTime(show.showEndTime)}
                       </div>
+                      {crew.length > 0 && (
+                        <div className="max-w-40 truncate text-[11px] text-neutral-500">
+                          {crew.map((p) => p.name).join(", ")}
+                        </div>
+                      )}
                     </td>
 
                     <td className="px-3 py-2.5">
@@ -208,13 +217,15 @@ export function ShowTable({
                         className="flex justify-end gap-1 whitespace-nowrap"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button
-                          type="button"
-                          onClick={() => onDocuments(show)}
-                          className="rounded-md bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-200"
-                        >
-                          Permission
-                        </button>
+                        {canDocuments && (
+                          <button
+                            type="button"
+                            onClick={() => onDocuments(show)}
+                            className="rounded-md bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-200"
+                          >
+                            Permission
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => onPayments(show)}
@@ -223,22 +234,22 @@ export function ShowTable({
                           Payments
                         </button>
                         {canEdit && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => onEdit(show)}
-                              className="rounded-md px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-100"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onDelete(show)}
-                              className="rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-red-50 hover:text-red-600"
-                            >
-                              Delete
-                            </button>
-                          </>
+                          <button
+                            type="button"
+                            onClick={() => onEdit(show)}
+                            className="rounded-md px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-100"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => onDelete(show)}
+                            className="rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                          >
+                            Delete
+                          </button>
                         )}
                       </div>
                     </td>

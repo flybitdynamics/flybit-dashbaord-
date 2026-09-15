@@ -23,7 +23,7 @@ type Dialog =
   | { kind: "documents"; show: Show };
 
 export function CalendarView() {
-  const { canEdit } = useAuth();
+  const { can } = useAuth();
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
 
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -46,9 +46,9 @@ export function CalendarView() {
           pilots={pilots}
           payments={payments}
           expenses={expenses}
-          canEdit={canEdit}
+          canEdit={can("shows", "edit")}
+          canDocuments={can("documents", "view")}
           onStage={(status) => setShowStatus(dialog.show.id, status)}
-          onEdit={() => {}}
           onPayments={() => setDialog({ kind: "payments", show: dialog.show })}
           onDocuments={() => setDialog({ kind: "documents", show: dialog.show })}
           onClose={() => setDialog({ kind: "none" })}
@@ -60,7 +60,8 @@ export function CalendarView() {
           key={dialog.show.id}
           show={dialog.show}
           payments={payments}
-          canEdit={canEdit}
+          canEdit={can("finance", "create")}
+          canRemove={can("finance", "delete")}
           onAdd={addPayment}
           onRemove={removePayment}
           onClose={() => setDialog({ kind: "detail", show: dialog.show })}

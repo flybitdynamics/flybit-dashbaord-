@@ -77,6 +77,7 @@ export function ShowDialog({
   clients,
   pilots,
   places,
+  canCreateClient = true,
   onSave,
   onCreateClient,
   onDelete,
@@ -86,6 +87,7 @@ export function ShowDialog({
   clients: Client[];
   pilots: Pilot[];
   places: Place[];
+  canCreateClient?: boolean;
   onSave: (draft: Draft, id: string | null) => void;
   /** Makes the client record and returns its id. */
   onCreateClient: (draft: Omit<Client, "id">) => string;
@@ -309,7 +311,7 @@ export function ShowDialog({
                 {client.type === "b2b" ? " · B2B" : ""}
               </option>
             ))}
-            <option value={NEW_CLIENT}>＋ New client…</option>
+            {canCreateClient && <option value={NEW_CLIENT}>＋ New client…</option>}
           </select>
         </Field>
 

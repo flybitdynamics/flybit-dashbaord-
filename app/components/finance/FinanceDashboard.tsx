@@ -42,7 +42,9 @@ function Bar({ value, max, tone }: { value: number; max: number; tone: "in" | "o
 }
 
 export function FinanceDashboard() {
-  const { canEdit } = useAuth();
+  const { can } = useAuth();
+  const canAdd = can("finance", "create");
+  const canEdit = can("finance", "edit");
   const [month, setMonth] = useState(currentMonth());
   const [dialog, setDialog] = useState<{ open: boolean; expense: Expense | null }>({
     open: false,
@@ -129,7 +131,7 @@ export function FinanceDashboard() {
                 </option>
               ))}
             </select>
-            {canEdit && (
+            {canAdd && (
               <button
                 type="button"
                 onClick={() => setDialog({ open: true, expense: null })}
@@ -340,7 +342,7 @@ export function FinanceDashboard() {
                       <tr>
                         <td colSpan={8} className="px-4 py-10 text-center text-sm text-neutral-500">
                           Nothing recorded for {formatMonth(month)}.
-                          {canEdit && " Use Add expense above."}
+                          {canAdd && " Use Add expense above."}
                         </td>
                       </tr>
                     ) : (
@@ -481,6 +483,7 @@ export function FinanceDashboard() {
             setDialog({ open: false, expense: null });
           }}
           onDelete={handleDelete}
+          canDelete={can("finance", "delete")}
           onClose={() => setDialog({ open: false, expense: null })}
         />
       )}
