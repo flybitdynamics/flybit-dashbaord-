@@ -178,8 +178,28 @@ export function ShowDialog({
         ? `${formatMoney(draft.showAmount)} less ${formatMoney(draft.commission)} commission = ${formatMoney(draft.showAmount - draft.commission)}`
         : formatMoney(draft.showAmount);
 
+  function getMissingConfirmationFields(d: Draft): string[] {
+    const missing: string[] = [];
+    if (!d.state.trim()) missing.push("State");
+    if (!d.location.trim()) missing.push("District / City");
+    if (!d.venueAddress.trim()) missing.push("Venue Address");
+    if (!d.coordinates.trim()) missing.push("Coordinates");
+    if (!d.showDate.trim()) missing.push("Show Date");
+    if (!d.showStartTime.trim() || !d.showEndTime.trim()) missing.push("Start/End Time");
+    if (!d.droneCount || d.droneCount <= 0) missing.push("Drone Count (> 0)");
+    if (!d.showAmount || d.showAmount <= 0) missing.push("Show Amount (> 0)");
+    return missing;
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (draft.showStatus === "confirmed" || draft.showStatus === "completed" || draft.showStatus === "closed") {
+      const missing = getMissingConfirmationFields(draft);
+      if (missing.length > 0) {
+        setProblem(`To confirm this booking, please complete all compulsory fields: ${missing.join(", ")}.`);
+        return;
+      }
+    }
     if (!draft.location.trim()) {
       setProblem("Add the district or city — the MoCA letter needs it.");
       return;
@@ -279,7 +299,20 @@ export function ShowDialog({
             id="f-status"
             className={inputClass}
             value={draft.showStatus}
-            onChange={(e) => set("showStatus", e.target.value as ShowStatus)}
+            onChange={(e) => {
+              const nextStatus = e.target.value as ShowStatus;
+              if (nextStatus === "confirmed" || nextStatus === "completed" || nextStatus === "closed") {
+                const missing = getMissingConfirmationFields(draft);
+                if (missing.length > 0) {
+                  setProblem(`Compulsory fields needed for ${SHOW_STATUSES[nextStatus]}: ${missing.join(", ")}.`);
+                } else {
+                  setProblem(null);
+                }
+              } else {
+                setProblem(null);
+              }
+              set("showStatus", nextStatus);
+            }}
           >
             {(Object.keys(SHOW_STATUSES) as ShowStatus[]).map((key) => (
               <option key={key} value={key}>
@@ -609,7 +642,7 @@ export function ShowDialog({
 
         <Section title="Money & permission" />
 
-        <Field label="Show amount (₹)" htmlFor="f-amount" hint="For an inquiry, the amount quoted.">
+        <Field label="Show amount (₹)" htmlFor="f-amount" hint="Entering an amount moves an inquiry to Confirmed.">
           <input
             id="f-amount"
             type="number"
@@ -617,7 +650,20 @@ export function ShowDialog({
             step={1000}
             className={inputClass}
             value={draft.showAmount || ""}
-            onChange={(e) => set("showAmount", Number(e.target.value) || 0)}
+            onChange={(e) => {
+              const amt = Number(e.target.value) || 0;
+              setDraft((prev) => ({
+                ...prev,
+                showAmount: amt,
+                showStatus:
+                  amt > 0 && prev.showStatus === "inquiry"
+                    ? "confirmed"
+                    : amt === 0 && prev.showStatus === "confirmed"
+                    ? "inquiry"
+                    : prev.showStatus,
+              }));
+              if (amt > 0) setProblem(null);
+            }}
             placeholder="151000"
           />
         </Field>

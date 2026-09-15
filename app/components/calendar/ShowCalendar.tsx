@@ -4,6 +4,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { getServerSnapshot, getSnapshot, subscribe } from "../../lib/store";
 import { currentMonth, formatMonth } from "../../lib/team";
 import {
+  SHOW_STATUSES,
   Show,
   Zone,
   formatCompactMoney,
@@ -21,6 +22,13 @@ const zoneDot: Record<Zone, string> = {
   green: "bg-emerald-500",
   yellow: "bg-amber-500",
   red: "bg-red-500",
+};
+
+const statusBadgeStyle: Record<string, string> = {
+  inquiry: "bg-amber-100 text-amber-900 border border-amber-200",
+  confirmed: "bg-neutral-900 text-white",
+  completed: "bg-emerald-100 text-emerald-900 border border-emerald-200",
+  closed: "bg-neutral-200 text-neutral-700",
 };
 
 interface Cell {
@@ -164,19 +172,17 @@ export function ShowCalendar({ onOpenShow }: { onOpenShow: (show: Show) => void 
                 return (
                   <div
                     key={cell.iso}
-                    className={`min-h-28 border-b border-r border-neutral-100 p-2 last:border-r-0 ${
-                      cell.inMonth ? "" : "bg-neutral-50/50"
-                    }`}
+                    className={`min-h-28 border-b border-r border-neutral-100 p-2 last:border-r-0 ${cell.inMonth ? "" : "bg-neutral-50/50"
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <span
-                        className={`tnum inline-flex size-6 items-center justify-center rounded-full font-mono text-xs ${
-                          isToday
-                            ? "bg-neutral-900 font-semibold text-white"
-                            : cell.inMonth
-                              ? "text-neutral-700"
-                              : "text-neutral-300"
-                        }`}
+                        className={`tnum inline-flex size-6 items-center justify-center rounded-full font-mono text-xs ${isToday
+                          ? "bg-neutral-900 font-semibold text-white"
+                          : cell.inMonth
+                            ? "text-neutral-700"
+                            : "text-neutral-300"
+                          }`}
                       >
                         {cell.day}
                       </span>
@@ -191,21 +197,28 @@ export function ShowCalendar({ onOpenShow }: { onOpenShow: (show: Show) => void 
                           key={show.id}
                           type="button"
                           onClick={() => onOpenShow(show)}
-                          title={`${show.showStatus === "inquiry" ? "Inquiry — " : ""}${show.client || show.location} · ${formatNumber(show.droneCount)} drones`}
-                          className={`w-full rounded-md px-1.5 py-1 text-left transition-colors ${
-                            show.showStatus === "inquiry"
-                              ? "border border-dashed border-neutral-300 bg-white hover:bg-neutral-50"
-                              : "bg-neutral-50 hover:bg-neutral-100"
-                          }`}
+                          title={`${SHOW_STATUSES[show.showStatus]} — ${show.client || show.location} · ${formatNumber(show.droneCount)} drones`}
+                          className={`w-full rounded-md p-1.5 text-left transition-colors ${show.showStatus === "inquiry"
+                            ? "border border-dashed border-amber-300 bg-amber-50/30 hover:bg-amber-50"
+                            : "bg-neutral-50 hover:bg-neutral-100"
+                            }`}
                         >
-                          <span className="flex items-center gap-1.5">
-                            <span className={`size-1.5 shrink-0 rounded-full ${zoneDot[show.zone]}`} />
-                            <span className="truncate text-[11px] font-medium text-neutral-800">
-                              {show.location || show.client || "Show"}
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="flex items-center gap-1 overflow-hidden min-w-0">
+                              <span className={`size-1.5 shrink-0 rounded-full ${zoneDot[show.zone]}`} />
+                              <span className="truncate text-[11px] font-semibold text-neutral-900">
+                                {show.location || show.client || "Show"}
+                              </span>
                             </span>
-                          </span>
+                            <span
+                              className={`shrink-0 rounded px-1 py-0.2 text-[9px] font-bold uppercase tracking-wide ${statusBadgeStyle[show.showStatus] ?? "bg-neutral-100 text-neutral-600"
+                                }`}
+                            >
+                              {SHOW_STATUSES[show.showStatus]}
+                            </span>
+                          </div>
                           <span className="tnum mt-0.5 block truncate font-mono text-[10px] text-neutral-500">
-                            {formatTime(show.showStartTime)} · {formatNumber(show.droneCount)}
+                            {formatTime(show.showStartTime)} · {formatNumber(show.droneCount)} drones
                           </span>
                         </button>
                       ))}

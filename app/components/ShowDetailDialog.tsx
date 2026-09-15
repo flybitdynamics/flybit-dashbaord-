@@ -99,13 +99,12 @@ function Stepper({ status }: { status: ShowStatus }) {
         return (
           <li key={stage} className="flex flex-1 items-center gap-1.5">
             <span
-              className={`flex h-7 flex-1 items-center justify-center rounded-lg px-2 text-xs font-medium ${
-                current
-                  ? "bg-neutral-900 text-white"
-                  : done
-                    ? "bg-neutral-200 text-neutral-700"
-                    : "bg-neutral-50 text-neutral-400"
-              } ${exited && i === reached ? "line-through" : ""}`}
+              className={`flex h-7 flex-1 items-center justify-center rounded-lg px-2 text-xs font-medium ${current
+                ? "bg-neutral-900 text-white"
+                : done
+                  ? "bg-neutral-200 text-neutral-700"
+                  : "bg-neutral-50 text-neutral-400"
+                } ${exited && i === reached ? "line-through" : ""}`}
               title={STAGE_HINTS[stage]}
             >
               {SHOW_STATUSES[stage]}
@@ -161,6 +160,23 @@ export function ShowDetailDialog({
   const booked = isBooked(show);
 
   function move(to: ShowStatus) {
+    if (to === "confirmed") {
+      const missing: string[] = [];
+      if (!show.state?.trim()) missing.push("State");
+      if (!show.location?.trim()) missing.push("District / City");
+      if (!show.venueAddress?.trim()) missing.push("Venue Address");
+      if (!show.coordinates?.trim()) missing.push("Coordinates");
+      if (!show.showDate?.trim()) missing.push("Show Date");
+      if (!show.showStartTime?.trim() || !show.showEndTime?.trim()) missing.push("Start/End Time");
+      if (!show.droneCount || show.droneCount <= 0) missing.push("Drone Count");
+      if (!show.showAmount || show.showAmount <= 0) missing.push("Show Amount");
+
+      if (missing.length > 0) {
+        alert(`To confirm this booking, please complete the following compulsory details: ${missing.join(", ")}.`);
+        if (onEdit) onEdit();
+        return;
+      }
+    }
     if (to === "closed" && pending > 0) {
       if (!window.confirm(`${formatMoney(pending)} is still pending on this show. Close it anyway?`)) return;
     }
