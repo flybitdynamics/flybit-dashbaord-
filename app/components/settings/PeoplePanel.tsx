@@ -22,7 +22,6 @@ function AddPerson({
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [employeeId, setEmployeeId] = useState("");
   const [phone, setPhone] = useState("");
   const [roleId, setRoleId] = useState(roles.find((r) => r.id === "operations")?.id ?? roles[0]?.id ?? "");
   const [superAdmin, setSuperAdmin] = useState(false);
@@ -37,7 +36,7 @@ function AddPerson({
     setBusy(true);
     setError(null);
     try {
-      await createUserAccount({ name, email, employeeId, phone, roleId, superAdmin }, password);
+      await createUserAccount({ name, email, employeeId: "", phone, roleId, superAdmin }, password);
       setDone(true);
     } catch (err) {
       setError(describeAuthError(err));
@@ -94,9 +93,7 @@ function AddPerson({
         <Field label="Email (their sign-in)" htmlFor="pp-email">
           <input id="pp-email" type="email" required className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
-        <Field label="Employee ID" htmlFor="pp-id">
-          <input id="pp-id" className={inputClass} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="FB-014" />
-        </Field>
+
         <Field label="Phone" htmlFor="pp-phone">
           <input id="pp-phone" type="tel" className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>
@@ -186,9 +183,9 @@ export function PeoplePanel({ people, roles }: { people: UserProfile[]; roles: R
                       )}
                       {self && <span className="text-[11px] text-neutral-400">you</span>}
                     </div>
-                    <div className="tnum font-mono text-xs text-neutral-500">
-                      {[person.employeeId, person.phone].filter(Boolean).join(" · ") || "—"}
-                    </div>
+                    {person.phone && (
+                      <div className="tnum font-mono text-xs text-neutral-500">{person.phone}</div>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-sm text-neutral-600">{person.email}</td>
                   <td className="px-4 py-2.5">
