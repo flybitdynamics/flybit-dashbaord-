@@ -47,7 +47,7 @@ export function PaymentsDialog({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!draft.amount || draft.amount <= 0) return;
+    if (!draft.amount || draft.amount <= 0 || show.showAmount <= 0) return;
     onAdd(draft);
     setDraft(emptyPayment(show.id));
   }
@@ -55,7 +55,11 @@ export function PaymentsDialog({
   return (
     <Modal
       title={`Payments — ${show.client || show.location}`}
-      subtitle={`Show amount ${formatMoney(show.showAmount)} · ${formatMoney(received)} received · ${formatMoney(pending)} pending`}
+      subtitle={
+        show.showAmount > 0
+          ? `Show amount ${formatMoney(show.showAmount)} · ${formatMoney(received)} received · ${formatMoney(pending)} pending`
+          : "Show amount not quoted yet"
+      }
       onClose={onClose}
       footer={
         <button
@@ -86,9 +90,11 @@ export function PaymentsDialog({
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-6 text-center text-sm text-neutral-500">
-                    {canEdit
-                      ? "Nothing received yet. Log the first payment below."
-                      : "Nothing received yet."}
+                    {show.showAmount <= 0
+                      ? "Show amount is not quoted yet."
+                      : canEdit
+                        ? "Nothing received yet. Log the first payment below."
+                        : "Nothing received yet."}
                   </td>
                 </tr>
               ) : (
@@ -120,70 +126,74 @@ export function PaymentsDialog({
           </table>
         </div>
 
-        {canEdit && (
-        <form
-          onSubmit={submit}
-          className="mt-5 grid grid-cols-1 gap-3.5 rounded-xl bg-neutral-50 p-4 sm:grid-cols-2"
-        >
-          <Field label="Payment received (₹)" htmlFor="p-amount">
-            <input
-              id="p-amount"
-              type="number"
-              min={0}
-              step={1000}
-              required
-              className={inputClass}
-              value={draft.amount || ""}
-              onChange={(e) => set("amount", Number(e.target.value) || 0)}
-              placeholder="60000"
-            />
-          </Field>
-
-          <Field label="Date" htmlFor="p-date">
-            <input
-              id="p-date"
-              type="date"
-              className={inputClass}
-              value={draft.date}
-              onChange={(e) => set("date", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Mode" htmlFor="p-mode">
-            <select
-              id="p-mode"
-              className={inputClass}
-              value={draft.mode}
-              onChange={(e) => set("mode", e.target.value as PaymentMode)}
-            >
-              {(Object.keys(PAYMENT_MODES) as PaymentMode[]).map((key) => (
-                <option key={key} value={key}>
-                  {PAYMENT_MODES[key]}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Notes" htmlFor="p-notes">
-            <input
-              id="p-notes"
-              className={inputClass}
-              value={draft.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              placeholder="Advance collected on site"
-            />
-          </Field>
-
-          <div className="sm:col-span-2">
-            <button
-              type="submit"
-              className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-            >
-              Add payment
-            </button>
+        {canEdit && show.showAmount <= 0 ? (
+          <div className="mt-5 rounded-xl bg-amber-50 p-4 text-xs font-medium text-amber-900 border border-amber-200">
+            Show amount has not been quoted yet. Set a show amount on the show before logging payments.
           </div>
-        </form>
-        )}
+        ) : canEdit ? (
+          <form
+            onSubmit={submit}
+            className="mt-5 grid grid-cols-1 gap-3.5 rounded-xl bg-neutral-50 p-4 sm:grid-cols-2"
+          >
+            <Field label="Payment received (₹)" htmlFor="p-amount">
+              <input
+                id="p-amount"
+                type="number"
+                min={0}
+                step={1000}
+                required
+                className={inputClass}
+                value={draft.amount || ""}
+                onChange={(e) => set("amount", Number(e.target.value) || 0)}
+                placeholder="60000"
+              />
+            </Field>
+
+            <Field label="Date" htmlFor="p-date">
+              <input
+                id="p-date"
+                type="date"
+                className={inputClass}
+                value={draft.date}
+                onChange={(e) => set("date", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Mode" htmlFor="p-mode">
+              <select
+                id="p-mode"
+                className={inputClass}
+                value={draft.mode}
+                onChange={(e) => set("mode", e.target.value as PaymentMode)}
+              >
+                {(Object.keys(PAYMENT_MODES) as PaymentMode[]).map((key) => (
+                  <option key={key} value={key}>
+                    {PAYMENT_MODES[key]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Notes" htmlFor="p-notes">
+              <input
+                id="p-notes"
+                className={inputClass}
+                value={draft.notes}
+                onChange={(e) => set("notes", e.target.value)}
+                placeholder="Advance collected on site"
+              />
+            </Field>
+
+            <div className="sm:col-span-2">
+              <button
+                type="submit"
+                className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+              >
+                Add payment
+              </button>
+            </div>
+          </form>
+        ) : null}
       </div>
     </Modal>
   );

@@ -83,15 +83,9 @@ export function PipelineStrip({
                 }`}
             >
               <div
-                className={`flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider ${selected ? "text-neutral-300" : "text-neutral-500"
+                className={`text-[11px] font-medium uppercase tracking-wider ${selected ? "text-neutral-300" : "text-neutral-500"
                   }`}
               >
-                <span
-                  className={`tnum inline-flex size-4 items-center justify-center rounded-full text-[9px] ${selected ? "bg-white/15" : "bg-neutral-100"
-                    }`}
-                >
-                  {i + 1}
-                </span>
                 {SHOW_STATUSES[status]}
               </div>
               <div className="tnum mt-1 text-2xl font-semibold tracking-tight">{list.length}</div>
