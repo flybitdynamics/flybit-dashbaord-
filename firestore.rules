@@ -131,6 +131,14 @@ service cloud.firestore {
       allow delete: if superAdmin();
     }
 
+    // Invoices carry the client's billing details and what they owe.
+    match /invoices/{id} {
+      allow read: if can("invoices", "view") || can("finance", "view");
+      allow create: if can("invoices", "create");
+      allow update: if can("invoices", "edit");
+      allow delete: if can("invoices", "delete");
+    }
+
     match /payments/{id} {
       allow read: if can("finance", "view") || can("shows", "view");
       allow create: if can("finance", "create");
@@ -169,6 +177,14 @@ service cloud.firestore {
       allow read: if can("team", "view") || can("finance", "view");
       allow create, update: if can("team", "edit") || can("team", "create");
       allow delete: if can("team", "delete");
+    }
+
+    // The activity trail. Anyone signed in adds to it as they work; only
+    // the super admin may rewrite or remove an entry.
+    match /audit_logs/{id} {
+      allow read: if active();
+      allow create: if active();
+      allow update, delete: if superAdmin();
     }
 
     // Anything else in this project is not the desk's.

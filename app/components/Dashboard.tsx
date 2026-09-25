@@ -290,6 +290,7 @@ export function Dashboard() {
           expenses={expenses}
           canEdit={canEditShow}
           canDocuments={canDocuments}
+          canInvoice={can("invoices", "create")}
           onStage={(status) => setShowStatus(dialog.show.id, status)}
           onEdit={() => setDialog({ kind: "show", show: live(dialog.show) })}
           onPayments={() => setDialog({ kind: "payments", show: dialog.show })}

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { EXPENSE_CATEGORIES, Expense, showMargin } from "../lib/finance";
 import {
   Client,
@@ -129,6 +131,7 @@ export function ShowDetailDialog({
   expenses,
   canEdit,
   canDocuments = true,
+  canInvoice = false,
   onStage,
   onEdit,
   onPayments,
@@ -142,6 +145,8 @@ export function ShowDetailDialog({
   expenses: Expense[];
   canEdit: boolean;
   canDocuments?: boolean;
+  /** Shown on booked shows, for roles that may raise one. */
+  canInvoice?: boolean;
   onStage: (status: ShowStatus) => void;
   /** Leave out where this screen has no edit form (the calendar). */
   onEdit?: () => void;
@@ -211,6 +216,14 @@ export function ShowDetailDialog({
               >
                 Documents
               </button>
+            )}
+            {canInvoice && booked && (
+              <Link
+                href={`/invoices?show=${show.id}`}
+                className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
+              >
+                Invoice
+              </Link>
             )}
             <button
               type="button"

@@ -29,9 +29,11 @@ import {
   placeId,
 } from "./types";
 import { Expense } from "./finance";
+import { Invoice, normalizeInvoice, totalsFor } from "./invoices";
 import {
   CLIENTS,
   EXPENSES,
+  INVOICES,
   LOGS,
   PAYMENTS,
   PILOTS,
@@ -51,6 +53,7 @@ export interface DeskState {
   clients: Client[];
   pilots: Pilot[];
   places: Place[];
+  invoices: Invoice[];
   settings: Settings;
   logs: AuditLog[];
   /** Set when Firestore refuses or cannot be reached. */
@@ -66,6 +69,7 @@ let expenses: Expense[] = [];
 let clients: Client[] = [];
 let pilots: Pilot[] = [];
 let places: Place[] = [];
+let invoices: Invoice[] = [];
 let settings: Settings = DEFAULT_SETTINGS;
 let logs: AuditLog[] = [];
 let error: string | null = null;
@@ -76,6 +80,7 @@ const seen = {
   clients: false,
   pilots: false,
   places: false,
+  invoices: false,
   settings: false,
   logs: false,
 };
@@ -92,7 +97,7 @@ function publish() {
   const ready = Object.values(seen).every(Boolean) || error !== null;
   if (!ready) return;
   const sortedLogs = [...logs].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, settings, logs: sortedLogs, error };
+  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, invoices, settings, logs: sortedLogs, error };
   emit();
 }
 
@@ -193,6 +198,17 @@ function attach() {
         publish();
       },
       denied("places"),
+    ),
+    onSnapshot(
+      collection(db, INVOICES),
+      (snap) => {
+        invoices = snap.docs
+          .map((d) => normalizeInvoice(d.id, d.data()))
+          .sort((a, b) => b.number.localeCompare(a.number));
+        seen.invoices = true;
+        publish();
+      },
+      denied("invoices"),
     ),
     onSnapshot(
       doc(db, ...SETTINGS_DOC),
@@ -451,6 +467,57 @@ export function removePilot(id: string): void {
     await batch.commit();
     recordActivity("delete", "pilot", id, target?.name || "Pilot", `Removed pilot "${target?.name || id}"`);
   })().catch(fail);
+}
+
+/* ---------------- invoices ---------------- */
+
+export function upsertInvoice(draft: Omit<Invoice, "id">, id: string | null): string {
+  const invoiceId = id ?? newId();
+  const previous = id ? invoices.find((i) => i.id === id) : null;
+  setDoc(doc(db(), INVOICES, invoiceId), clean(draft)).catch(fail);
+
+  const total = totalsFor({ ...draft, id: invoiceId });
+  const who = draft.billTo.name || "client";
+
+  if (previous) {
+    const before = totalsFor(previous);
+    const changes: string[] = [];
+    if (before.total !== total.total) {
+      changes.push(`Total: ${formatMoney(before.total)} → ${formatMoney(total.total)}`);
+    }
+    if (previous.status !== draft.status) changes.push(`Status: ${previous.status} → ${draft.status}`);
+    if (previous.paymentMade !== draft.paymentMade) {
+      changes.push(`Payment made: ${formatMoney(previous.paymentMade)} → ${formatMoney(draft.paymentMade)}`);
+    }
+    recordActivity(
+      "edit",
+      "invoice",
+      invoiceId,
+      draft.number,
+      `Updated invoice ${draft.number} for "${who}"${changes.length ? `: ${changes.join("; ")}` : ""}`,
+    );
+  } else {
+    recordActivity(
+      "create",
+      "invoice",
+      invoiceId,
+      draft.number,
+      `Raised invoice ${draft.number} for "${who}" — ${formatMoney(total.total)}`,
+    );
+  }
+  return invoiceId;
+}
+
+export function removeInvoice(id: string): void {
+  const target = invoices.find((i) => i.id === id);
+  deleteDoc(doc(db(), INVOICES, id)).catch(fail);
+  recordActivity(
+    "delete",
+    "invoice",
+    id,
+    target?.number || "Invoice",
+    `Deleted invoice ${target?.number || id}`,
+  );
 }
 
 /* ---------------- payments, expenses, settings ---------------- */

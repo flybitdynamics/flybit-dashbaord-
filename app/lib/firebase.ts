@@ -41,6 +41,7 @@ export const EXPENSES = "expenses";
 export const CLIENTS = "clients";
 export const PILOTS = "pilots";
 export const PLACES = "places";
+export const INVOICES = "invoices";
 export const USERS = "users";
 export const ROLES = "roles";
 export const LOGS = "audit_logs";

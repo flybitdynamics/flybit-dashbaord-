@@ -49,3 +49,553 @@ body {
 .row-line:last-child {
   border-bottom: 0;
 }
+
+/* ------------------------------------------------------------------ *
+ * Tax invoice sheet.
+ *
+ * Measured off the company's own INV-000002 so a printed copy lands on
+ * the same lines: A4, a 0.75pt frame inset 39.6pt from the left and
+ * 50.4pt from the top, 8pt body type, and the column edges of that file.
+ * Sizes stay in points — the printer, not the screen, is the target.
+ * ------------------------------------------------------------------ */
+
+.inv-sheet {
+  width: 595.4pt;
+  min-height: 841.7pt;
+  padding: 50.4pt 28.8pt 50.4pt 39.6pt;
+  position: relative;
+  background: #fff;
+  color: #000;
+  font-family: Helvetica, Arial, "Helvetica Neue", sans-serif;
+  font-size: 8pt;
+  line-height: 1.32;
+  box-sizing: border-box;
+  /* The header bands are part of the document, not decoration — keep them
+     when the browser would otherwise drop background colours. */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.inv-frame {
+  border: 0.75pt solid #9e9e9e;
+  min-height: 740.9pt;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.inv-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Sits in the bottom page margin, below the frame — placed absolutely so
+   the box above keeps its exact height and the page stays one sheet. */
+.inv-fineprint {
+  position: absolute;
+  left: 39.6pt;
+  right: 28.8pt;
+  bottom: 32pt;
+  text-align: center;
+  font-size: 6.5pt;
+  line-height: 8pt;
+  color: #666;
+}
+
+/* ---- letterhead ---- */
+
+.inv-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 96pt;
+  padding: 7pt 8pt 5pt 7.5pt;
+  box-sizing: border-box;
+}
+
+.inv-head-company {
+  align-self: flex-start;
+  line-height: 9.2pt;
+}
+
+.inv-company-name {
+  font-size: 12pt;
+  font-weight: 700;
+  margin-bottom: 1.5pt;
+}
+
+/* Logo over the title, both hard against the right edge. */
+.inv-head-right {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 20pt;
+}
+
+.inv-logo {
+  width: 84pt;
+  height: auto;
+}
+
+.inv-title {
+  font-size: 22pt;
+  letter-spacing: 0.2pt;
+  white-space: nowrap;
+}
+
+/* ---- number, dates, place of supply ---- */
+
+.inv-meta {
+  display: flex;
+  height: 51.6pt;
+  border-top: 0.75pt solid #9e9e9e;
+  box-sizing: border-box;
+}
+
+.inv-meta-col {
+  width: 50%;
+  padding: 4.5pt 6pt 0 3.75pt;
+  box-sizing: border-box;
+}
+
+.inv-meta-col + .inv-meta-col {
+  border-left: 0.75pt solid #9e9e9e;
+}
+
+.inv-meta-row {
+  display: flex;
+  line-height: 10.9pt;
+}
+
+.inv-meta-label {
+  width: 127pt;
+  flex: none;
+}
+
+.inv-meta-value {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.inv-meta-colon {
+  flex: none;
+  /* A flex item swallows a trailing space; the gap has to be real. */
+  margin-right: 2.2pt;
+}
+
+/* ---- bill to / ship to ---- */
+
+.inv-party-head {
+  display: flex;
+  height: 12.5pt;
+  border-top: 0.75pt solid #9e9e9e;
+  border-bottom: 0.75pt solid #9e9e9e;
+  box-sizing: border-box;
+}
+
+.inv-party-cell {
+  flex: 1;
+  padding: 1.5pt 6pt 0 3.75pt;
+  font-weight: 700;
+  background: #f2f3f4;
+  box-sizing: border-box;
+}
+
+.inv-party-cell + .inv-party-cell {
+  border-left: 0.75pt solid #9e9e9e;
+}
+
+.inv-party {
+  display: flex;
+  min-height: 90.4pt;
+  border-bottom: 0.75pt solid #9e9e9e;
+  box-sizing: border-box;
+}
+
+.inv-party-col {
+  line-height: 11.25pt;
+  flex: 1;
+  padding: 4pt 6pt 4pt 3.75pt;
+  box-sizing: border-box;
+}
+
+.inv-party-col + .inv-party-col {
+  border-left: 0.75pt solid #9e9e9e;
+}
+
+.inv-party-name {
+  font-size: 9pt;
+  font-weight: 700;
+  margin-bottom: 1.5pt;
+}
+
+/* ---- subject ---- */
+
+.inv-subject {
+  line-height: 9.2pt;
+  min-height: 43.4pt;
+  padding: 5pt 7.5pt;
+  border-bottom: 0.75pt solid #9e9e9e;
+  box-sizing: border-box;
+}
+
+.inv-subject-text {
+  margin-top: 6.2pt;
+}
+
+/* ---- the lines ---- */
+
+.inv-items {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.inv-items th {
+  background: #f2f3f4;
+  font-weight: 700;
+  border: 0.75pt solid #9e9e9e;
+  border-top: 0;
+  line-height: 9.3pt;
+  padding: 2.5pt 4pt;
+  text-align: left;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+.inv-items td {
+  border: 0.75pt solid #9e9e9e;
+  line-height: 9.3pt;
+  padding: 0.65pt 4pt;
+  vertical-align: top;
+  box-sizing: border-box;
+}
+
+.inv-items th:first-child,
+.inv-items td:first-child {
+  border-left: 0;
+}
+
+.inv-items th:last-child,
+.inv-items td:last-child {
+  border-right: 0;
+}
+
+.inv-items .inv-c-sr {
+  text-align: center;
+  padding-left: 2pt;
+  padding-right: 2pt;
+}
+
+.inv-items .inv-c-item {
+  padding-left: 5.6pt;
+}
+
+.inv-items .inv-c-hsn {
+  padding-left: 5.6pt;
+}
+
+.inv-items th.inv-c-rate,
+.inv-items th.inv-c-amount,
+.inv-items td.inv-c-rate,
+.inv-items td.inv-c-amount,
+.inv-items td.inv-c-tax-half {
+  text-align: right;
+  padding-right: 8pt;
+}
+
+.inv-items th.inv-c-tax {
+  text-align: center;
+}
+
+.inv-items th.inv-c-tax-half {
+  text-align: right;
+  padding: 0.85pt 8pt 0.85pt 4pt;
+}
+
+/* ---- totals, words, signature ---- */
+
+.inv-foot {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+}
+
+.inv-foot-left {
+  flex: 1;
+  line-height: 9.2pt;
+  padding: 9pt 8pt 8pt 5.25pt;
+  min-width: 0;
+}
+
+.inv-foot-label {
+  margin-bottom: 1.5pt;
+}
+
+.inv-words {
+  font-weight: 700;
+}
+
+/* Whatever follows the words line keeps the original's gap; the blocks
+   after it sit closer together. */
+.inv-foot-block {
+  margin-top: 11pt;
+}
+
+.inv-words + .inv-foot-block {
+  margin-top: 21pt;
+}
+
+.inv-bank-head {
+  font-weight: 700;
+}
+
+.inv-foot-right {
+  width: 43.6%;
+  padding-top: 1.3pt;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.inv-total-row {
+  display: flex;
+  border-left: 0.75pt solid #9e9e9e;
+  justify-content: flex-end;
+  gap: 8pt;
+  line-height: 12.2pt;
+  padding: 0 8pt 0 6pt;
+}
+
+.inv-total-row > span:first-child {
+  width: 56%;
+  text-align: right;
+}
+
+.inv-total-row > span:last-child {
+  flex: 1;
+}
+
+.inv-total-strong {
+  font-weight: 700;
+}
+
+.inv-balance {
+  font-size: 9pt;
+  font-weight: 700;
+  line-height: 13.7pt;
+  padding-bottom: 2.5pt;
+  border-bottom: 0.75pt solid #9e9e9e;
+}
+
+.inv-sign {
+  box-sizing: border-box;
+  border-left: 0.75pt solid #9e9e9e;
+  height: 100pt;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 6pt;
+  border-bottom: 0.75pt solid #9e9e9e;
+}
+
+/* The stamp sits above the line, clear of the caption under it. */
+.inv-sign-mark {
+  width: 124pt;
+  height: auto;
+  margin-bottom: 2pt;
+}
+
+.inv-sign-line {
+  width: 124pt;
+  border-bottom: 0.5pt solid #9e9e9e;
+  margin-bottom: 3pt;
+}
+
+/* ------------------------------------------------------------------ *
+ * Editing on the page itself.
+ *
+ * A field carries no box of its own: it inherits the document's type and
+ * sits in the same place the printed value does, so nothing shifts between
+ * typing and paper. Only hover and focus give it away.
+ * ------------------------------------------------------------------ */
+
+.inv-edit {
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  width: 100%;
+  min-width: 0;
+  padding: 0 1pt;
+  margin: 0 -1pt;
+  border: 0;
+  outline: 0;
+  border-radius: 1.5pt;
+  box-sizing: border-box;
+  background: rgba(37, 99, 235, 0.05);
+  box-shadow: inset 0 0 0 0.4pt rgba(37, 99, 235, 0.2);
+}
+
+.inv-edit:hover {
+  background: rgba(37, 99, 235, 0.07);
+  box-shadow: inset 0 0 0 0.5pt rgba(37, 99, 235, 0.35);
+}
+
+.inv-edit:focus {
+  background: #fff;
+  box-shadow: inset 0 0 0 0.75pt #2563eb;
+}
+
+.inv-edit::placeholder {
+  color: #b4b4b4;
+  font-style: italic;
+}
+
+textarea.inv-edit {
+  display: block;
+  overflow: hidden;
+  resize: none;
+}
+
+/* The wrapper sizes itself from the same text the field holds, so a value
+   that wraps to two lines makes a two-line box — no scripted resizing. */
+.inv-grow {
+  display: grid;
+}
+
+.inv-grow::after {
+  content: attr(data-value) " ";
+  visibility: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  grid-area: 1 / 1;
+  padding: 0 1pt;
+  margin: 0 -1pt;
+}
+
+.inv-grow > textarea {
+  grid-area: 1 / 1;
+}
+
+.inv-pct {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+}
+
+.inv-pct > .inv-edit {
+  width: 3.4ch;
+}
+
+.inv-paid {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+}
+
+.inv-edit-paid {
+  width: 52pt;
+}
+
+.inv-edit-gstin {
+  width: 72pt;
+}
+
+.inv-edit-total {
+  width: 56pt;
+}
+
+/* "Rs." and "(-)" sit outside their field, so the pair is aligned as one. */
+.inv-total-row > span:last-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+}
+
+/* Remove-line buttons live out in the page margin, beside their row. */
+.inv-rel {
+  position: relative;
+}
+
+.inv-row-del {
+  position: absolute;
+  top: 50%;
+  left: -21pt;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 13pt;
+  height: 13pt;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f1f4;
+  color: #8a8a8a;
+  font-size: 7pt;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.inv-row-del:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ------------------------------------------------------------------ *
+ * Printing. The sheet already carries the page's margins, so the page
+ * box gets none — that is what keeps it identical to the original PDF.
+ * ------------------------------------------------------------------ */
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .inv-sheet,
+  .inv-sheet * {
+    visibility: visible;
+  }
+
+  .inv-sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  /* Nothing of the editor reaches the paper: no field boxes, no
+     placeholder text, no row controls. */
+  .inv-noprint {
+    display: none !important;
+  }
+
+  .inv-edit {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .inv-edit::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+  }
+
+  /* The on-screen preview may be scaled down; the paper never is. */
+  .inv-zoom {
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+  }
+}

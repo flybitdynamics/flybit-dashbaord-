@@ -108,7 +108,7 @@ export interface AuditLog {
   actorName: string;
   actorEmail: string;
   action: LogAction;
-  entityType: "show" | "client" | "pilot" | "payment" | "expense" | "user" | "settings";
+  entityType: "show" | "client" | "pilot" | "payment" | "expense" | "invoice" | "user" | "settings";
   entityId: string;
   entityTitle: string;
   details: string;
@@ -123,6 +123,13 @@ export interface Settings {
   companyAddressLine2: string;
   companyEmail: string;
   companyPhone: string;
+  /** Printed on the tax invoice under the address. */
+  gstin: string;
+  /* Bank details, printed under the notes on every invoice. */
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankName: string;
+  bankIfsc: string;
   nodalPhone: string;
   signatoryName: string;
   signatoryTitle: string;
@@ -148,6 +155,12 @@ export const DEFAULT_SETTINGS: Settings = {
   companyAddressLine2: "Ahmedabad, Gujarat - 380060",
   companyEmail: "flybitdynamics@gmail.com",
   companyPhone: "+91 92274 28262",
+  gstin: "24AAGCF1802L1ZU",
+  bankAccountName: "FLYBIT DYNAMICS PVT LTD",
+  // Fill this in — it is the one bank value the invoice does not know yet.
+  bankAccountNumber: "5020 0120 9009 90",
+  bankName: "HDFC Bank",
+  bankIfsc: "HDFC0000049",
   nodalPhone: "+91 9227428262",
   signatoryName: "Vivekkumar Patel",
   signatoryTitle: "Director",
