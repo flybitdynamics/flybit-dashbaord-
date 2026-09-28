@@ -20,6 +20,8 @@ const GROUPS: { title: string; note?: string; keys: (keyof Settings)[] }[] = [
       "companyPhone",
       "nodalPhone",
       "gstin",
+      "letterheadEmail",
+      "website",
     ],
   },
   {
@@ -64,6 +66,8 @@ const LABELS: Record<keyof Settings, string> = {
   companyPhone: "Phone (letter format)",
   nodalPhone: "Nodal officer mobile (Annexure 5 format)",
   gstin: "GSTIN (printed on invoices)",
+  letterheadEmail: "Letterhead email (quotations)",
+  website: "Website",
   bankAccountName: "Account name",
   bankAccountNumber: "Account number",
   bankName: "Bank",

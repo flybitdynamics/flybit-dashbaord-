@@ -564,7 +564,9 @@ textarea.inv-edit {
   }
 
   .inv-sheet,
-  .inv-sheet * {
+  .inv-sheet *,
+  .q-sheet,
+  .q-sheet * {
     visibility: visible;
   }
 
@@ -592,10 +594,343 @@ textarea.inv-edit {
     opacity: 0 !important;
   }
 
+  /* The quotation runs to two pages, so it prints in the normal flow
+     rather than pinned to the top-left: its wrappers step out of the way
+     and the page breaks fall between the sheets. */
+  .q-print-host {
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: none !important;
+  }
+
   /* The on-screen preview may be scaled down; the paper never is. */
   .inv-zoom {
     transform: none !important;
     width: auto !important;
     height: auto !important;
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Quotation sheet.
+ *
+ * Two letterhead pages, laid out from quotation #FD00069: a 426pt content
+ * block, the table's columns at 54 / 237 / 135pt inside it, 10pt body type
+ * and the orange rule and contact strip of the company's stationery. Built
+ * on A4 rather than the source's US Letter, so it prints here without
+ * rescaling.
+ * ------------------------------------------------------------------ */
+
+.q-sheet {
+  font-family: Helvetica, Arial, "Helvetica Neue", sans-serif;
+  color: #1a1a1a;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.q-page {
+  width: 595.4pt;
+  height: 841.7pt;
+  padding: 0 84.7pt;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  font-size: 10pt;
+  line-height: 14pt;
+  overflow: hidden;
+}
+
+.q-page-two {
+  margin-top: 16pt;
+}
+
+@media print {
+  .q-page-two {
+    margin-top: 0;
+  }
+
+  .q-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .q-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}
+
+/* ---- letterhead ---- */
+/* Sizes are the printed ones: a 14pt tab off the top edge ending in the
+   first icon, 14pt circles 21pt apart, 11pt text 7.7pt to their right. */
+
+.q-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex: none;
+  padding-top: 36pt;
+}
+
+.q-logo {
+  width: 113pt;
+  height: auto;
+}
+
+.q-contact {
+  position: relative;
+  margin-top: -36pt;
+  padding: 36.5pt 0 0 0;
+  font-size: 11pt;
+  line-height: 13pt;
+  color: #1a1a1a;
+}
+
+/* Runs off the top of the page and ends in the first icon. */
+.q-tab {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14pt;
+  height: 53.8pt;
+  border-radius: 0 0 7pt 7pt;
+  background: #f6a20a;
+}
+
+.q-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 7.7pt;
+  height: 21pt;
+  white-space: nowrap;
+}
+
+.q-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14pt;
+  height: 14pt;
+  flex: none;
+  border-radius: 999px;
+  background: #f6a20a;
+  color: #fff;
+}
+
+.q-icon svg {
+  width: 8.6pt;
+  height: 8.6pt;
+}
+
+/* The tab already provides this one's background. */
+.q-icon-first {
+  background: transparent;
+}
+
+.q-icon-pin {
+  width: 12pt;
+  height: 12pt;
+  margin-top: 0.5pt;
+}
+
+.q-icon-pin svg {
+  width: 7.4pt;
+  height: 7.4pt;
+}
+
+.q-body {
+  flex: 1;
+  min-height: 0;
+  padding-top: 26pt;
+}
+
+/* ---- the letter ---- */
+
+.q-meta {
+  margin-bottom: 30pt;
+}
+
+.q-edit-number,
+.q-edit-date {
+  width: 90pt;
+}
+
+.q-to {
+  margin-bottom: 38pt;
+}
+
+.q-subject {
+  margin-bottom: 14pt;
+}
+
+/* ---- the priced table ---- */
+
+.q-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.q-table th,
+.q-table td {
+  border: 0.75pt solid #7a7a7a;
+  padding: 6pt 7pt;
+  text-align: left;
+  vertical-align: top;
+  box-sizing: border-box;
+}
+
+.q-table th {
+  font-weight: 400;
+}
+
+.q-table tbody td {
+  height: 34pt;
+}
+
+.q-c-sr {
+  text-align: left;
+}
+
+.q-tax-note {
+  margin-top: 12pt;
+  text-align: center;
+  font-style: italic;
+}
+
+.q-scope-note {
+  margin-top: 14pt;
+}
+
+.q-closing {
+  margin-top: 30pt;
+  font-weight: 700;
+}
+
+.q-signer {
+  margin-top: 36pt;
+  font-weight: 700;
+}
+
+/* ---- page two ---- */
+
+.q-heading {
+  font-size: 10pt;
+  font-weight: 700;
+}
+
+.q-heading-gap {
+  margin-top: 46pt;
+}
+
+.q-bullets {
+  margin: 10pt 0 0 22pt;
+  padding: 0;
+  list-style: disc;
+}
+
+.q-bullets li {
+  margin-bottom: 2pt;
+}
+
+.q-confidential {
+  margin-top: 96pt;
+  text-align: center;
+  font-size: 6.5pt;
+  line-height: 9pt;
+  color: #444;
+}
+
+/* ---- footer ---- */
+
+.q-footer {
+  flex: none;
+  padding-bottom: 64pt;
+}
+
+.q-rule {
+  height: 3.5pt;
+  border-radius: 2pt;
+  background: #f6a20a;
+  margin: 0 -22pt 18pt -46pt;
+}
+
+.q-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 6pt;
+  font-size: 8.5pt;
+  line-height: 12pt;
+  color: #3a3a3a;
+}
+
+/* ---- editing controls ---- */
+
+.q-rel {
+  position: relative;
+}
+
+.q-row-del,
+.q-row-add {
+  position: absolute;
+  top: 6pt;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 13pt;
+  height: 13pt;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f1f4;
+  color: #8a8a8a;
+  font-size: 8pt;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.q-row-del {
+  left: -34pt;
+}
+
+.q-row-add {
+  left: -17pt;
+}
+
+.q-row-del:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.q-row-add:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.q-bullets .q-row-del {
+  top: 0;
+  left: -32pt;
+}
+
+.q-add-bullet {
+  list-style: none;
+  margin-left: -12pt;
+}
+
+.q-add-bullet button {
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  font: inherit;
+  font-size: 8pt;
+  cursor: pointer;
+  padding: 0;
+}
+
+.q-add-bullet button:hover {
+  text-decoration: underline;
 }

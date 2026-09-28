@@ -49,6 +49,7 @@ export function CalendarView() {
           canEdit={can("shows", "edit")}
           canDocuments={can("documents", "view")}
           canInvoice={can("invoices", "create")}
+          canQuote={can("quotations", "create")}
           onStage={(status) => setShowStatus(dialog.show.id, status)}
           onPayments={() => setDialog({ kind: "payments", show: dialog.show })}
           onDocuments={() => setDialog({ kind: "documents", show: dialog.show })}

@@ -11,15 +11,12 @@
  *  box of their own, so nothing moves between editing and paper. */
 
 import Image from "next/image";
-import { useState } from "react";
+import { DateSlot, GrowSlot, MoneySlot, Slot } from "../sheet/Fields";
 import { Client, Settings } from "../../lib/types";
 import {
   Invoice,
   InvoiceLine,
   InvoiceParty,
-  amountText,
-  invoiceDate,
-  parseInvoiceDate,
   partyFromClient,
   placeOfSupplyLabel,
   taxModeFor,
@@ -33,135 +30,6 @@ export interface SheetEdit {
   onRemoveLine: (id: string) => void;
   /** Naming one fills the address block from their record. */
   clients: Client[];
-}
-
-/* ---------------- the editable slots ---------------- */
-
-/** A single-line value. */
-function Slot({
-  value,
-  edit,
-  onChange,
-  className = "",
-  placeholder,
-  list,
-}: {
-  value: string;
-  edit: boolean;
-  onChange?: (value: string) => void;
-  className?: string;
-  placeholder?: string;
-  list?: string;
-}) {
-  if (!edit || !onChange) return <>{value}</>;
-  return (
-    <input
-      className={`inv-edit ${className}`}
-      value={value}
-      list={list}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  );
-}
-
-/** A value that may wrap or run to several lines. The wrapper sizes itself
- *  from the same text, so the box is always exactly as tall as the words. */
-function GrowSlot({
-  value,
-  edit,
-  onChange,
-  className = "",
-  placeholder,
-}: {
-  value: string;
-  edit: boolean;
-  onChange?: (value: string) => void;
-  className?: string;
-  placeholder?: string;
-}) {
-  if (!edit || !onChange) {
-    return (
-      <>
-        {value
-          .split("\n")
-          .map((line) => line.trim())
-          .filter(Boolean)
-          .map((line, index) => (
-            <div key={index}>{line}</div>
-          ))}
-      </>
-    );
-  }
-  return (
-    <span className="inv-grow" data-value={value}>
-      <textarea
-        rows={1}
-        className={`inv-edit ${className}`}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </span>
-  );
-}
-
-/** Money reads as 5,00,000 until you click into it, then as a whole number. */
-function MoneySlot({
-  value,
-  edit,
-  onChange,
-  className = "",
-}: {
-  value: number;
-  edit: boolean;
-  onChange?: (value: number) => void;
-  className?: string;
-}) {
-  const [typing, setTyping] = useState<string | null>(null);
-  if (!edit || !onChange) return <>{amountText(value)}</>;
-  return (
-    <input
-      inputMode="numeric"
-      className={`inv-edit ${className}`}
-      value={typing ?? amountText(value)}
-      onFocus={() => setTyping(value ? String(Math.round(value)) : "")}
-      onBlur={() => setTyping(null)}
-      onChange={(e) => {
-        setTyping(e.target.value);
-        const parsed = Number(e.target.value.replace(/[^\d-]/g, ""));
-        if (!Number.isNaN(parsed)) onChange(Math.round(parsed));
-      }}
-    />
-  );
-}
-
-/** Dates print as 25/03/2026 and are typed the same way. */
-function DateSlot({
-  value,
-  edit,
-  onChange,
-}: {
-  value: string;
-  edit: boolean;
-  onChange?: (iso: string) => void;
-}) {
-  const [typing, setTyping] = useState<string | null>(null);
-  if (!edit || !onChange) return <>{invoiceDate(value)}</>;
-  return (
-    <input
-      className="inv-edit"
-      placeholder="dd/mm/yyyy"
-      value={typing ?? invoiceDate(value)}
-      onFocus={() => setTyping(invoiceDate(value))}
-      onBlur={() => setTyping(null)}
-      onChange={(e) => {
-        setTyping(e.target.value);
-        const iso = parseInvoiceDate(e.target.value);
-        if (iso) onChange(iso);
-      }}
-    />
-  );
 }
 
 function MetaRow({

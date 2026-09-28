@@ -132,6 +132,7 @@ export function ShowDetailDialog({
   canEdit,
   canDocuments = true,
   canInvoice = false,
+  canQuote = false,
   onStage,
   onEdit,
   onPayments,
@@ -147,6 +148,8 @@ export function ShowDetailDialog({
   canDocuments?: boolean;
   /** Shown on booked shows, for roles that may raise one. */
   canInvoice?: boolean;
+  /** A quotation can go out before anything is booked. */
+  canQuote?: boolean;
   onStage: (status: ShowStatus) => void;
   /** Leave out where this screen has no edit form (the calendar). */
   onEdit?: () => void;
@@ -216,6 +219,14 @@ export function ShowDetailDialog({
               >
                 Documents
               </button>
+            )}
+            {canQuote && (
+              <Link
+                href={`/quotations?show=${show.id}`}
+                className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
+              >
+                Quote
+              </Link>
             )}
             {canInvoice && booked && (
               <Link

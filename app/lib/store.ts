@@ -30,11 +30,13 @@ import {
 } from "./types";
 import { Expense } from "./finance";
 import { Invoice, normalizeInvoice, totalsFor } from "./invoices";
+import { Quotation, normalizeQuotation } from "./quotations";
 import {
   CLIENTS,
   EXPENSES,
   INVOICES,
   LOGS,
+  QUOTATIONS,
   PAYMENTS,
   PILOTS,
   PLACES,
@@ -54,6 +56,7 @@ export interface DeskState {
   pilots: Pilot[];
   places: Place[];
   invoices: Invoice[];
+  quotations: Quotation[];
   settings: Settings;
   logs: AuditLog[];
   /** Set when Firestore refuses or cannot be reached. */
@@ -70,6 +73,7 @@ let clients: Client[] = [];
 let pilots: Pilot[] = [];
 let places: Place[] = [];
 let invoices: Invoice[] = [];
+let quotations: Quotation[] = [];
 let settings: Settings = DEFAULT_SETTINGS;
 let logs: AuditLog[] = [];
 let error: string | null = null;
@@ -81,6 +85,7 @@ const seen = {
   pilots: false,
   places: false,
   invoices: false,
+  quotations: false,
   settings: false,
   logs: false,
 };
@@ -97,7 +102,7 @@ function publish() {
   const ready = Object.values(seen).every(Boolean) || error !== null;
   if (!ready) return;
   const sortedLogs = [...logs].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, invoices, settings, logs: sortedLogs, error };
+  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, invoices, quotations, settings, logs: sortedLogs, error };
   emit();
 }
 
@@ -209,6 +214,17 @@ function attach() {
         publish();
       },
       denied("invoices"),
+    ),
+    onSnapshot(
+      collection(db, QUOTATIONS),
+      (snap) => {
+        quotations = snap.docs
+          .map((d) => normalizeQuotation(d.id, d.data()))
+          .sort((a, b) => b.number.localeCompare(a.number));
+        seen.quotations = true;
+        publish();
+      },
+      denied("quotations"),
     ),
     onSnapshot(
       doc(db, ...SETTINGS_DOC),
@@ -383,6 +399,37 @@ export function removeShow(id: string): void {
   })().catch(fail);
 }
 
+/** Bringing in a spreadsheet: one batch, and one line in the activity log
+ *  rather than eighty-six. */
+export async function importShows(drafts: Array<Omit<Show, "id">>): Promise<number> {
+  if (drafts.length === 0) return 0;
+  const instance = db();
+  const batch = writeBatch(instance);
+  const places = new Map<string, { state: string; city: string; area: string }>();
+
+  for (const draft of drafts) {
+    batch.set(doc(instance, SHOWS, newId()), clean({ ...draft }));
+    if (draft.location.trim()) {
+      places.set(placeId(draft.state, draft.location, draft.area), {
+        state: draft.state.trim(),
+        city: draft.location.trim(),
+        area: draft.area.trim(),
+      });
+    }
+  }
+  for (const [id, place] of places) batch.set(doc(instance, PLACES, id), place);
+
+  await batch.commit();
+  recordActivity(
+    "create",
+    "show",
+    "import",
+    "Import",
+    `Imported ${drafts.length} row${drafts.length === 1 ? "" : "s"} from a spreadsheet`,
+  );
+  return drafts.length;
+}
+
 /* ---------------- places ---------------- */
 
 export function rememberPlace(state: string, city: string, area: string): void {
@@ -517,6 +564,51 @@ export function removeInvoice(id: string): void {
     id,
     target?.number || "Invoice",
     `Deleted invoice ${target?.number || id}`,
+  );
+}
+
+/* ---------------- quotations ---------------- */
+
+export function upsertQuotation(draft: Omit<Quotation, "id">, id: string | null): string {
+  const quotationId = id ?? newId();
+  const previous = id ? quotations.find((q) => q.id === id) : null;
+  setDoc(doc(db(), QUOTATIONS, quotationId), clean(draft)).catch(fail);
+
+  const who = draft.to.split("\n")[0] || "client";
+  if (previous) {
+    const changes: string[] = [];
+    if (previous.status !== draft.status) changes.push(`Status: ${previous.status} → ${draft.status}`);
+    if (previous.rows.length !== draft.rows.length) {
+      changes.push(`Rows: ${previous.rows.length} → ${draft.rows.length}`);
+    }
+    recordActivity(
+      "edit",
+      "quotation",
+      quotationId,
+      draft.number,
+      `Updated quotation ${draft.number} for "${who}"${changes.length ? `: ${changes.join("; ")}` : ""}`,
+    );
+  } else {
+    recordActivity(
+      "create",
+      "quotation",
+      quotationId,
+      draft.number,
+      `Raised quotation ${draft.number} for "${who}"`,
+    );
+  }
+  return quotationId;
+}
+
+export function removeQuotation(id: string): void {
+  const target = quotations.find((q) => q.id === id);
+  deleteDoc(doc(db(), QUOTATIONS, id)).catch(fail);
+  recordActivity(
+    "delete",
+    "quotation",
+    id,
+    target?.number || "Quotation",
+    `Deleted quotation ${target?.number || id}`,
   );
 }
 

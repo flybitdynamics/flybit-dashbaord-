@@ -38,7 +38,7 @@ Each person has **one role**. A role is a grid of *area × action*:
 
 | Area | View | Add | Edit | Delete |
 | ---- | :--: | :-: | :--: | :----: |
-| Shows, Clients, Pilots, Invoices, Finance & payments, Team | ✓ | ✓ | ✓ | ✓ |
+| Shows, Clients, Pilots, Quotations, Invoices, Finance & payments, Team | ✓ | ✓ | ✓ | ✓ |
 | Calendar, Permission documents | ✓ | | | |
 | Company settings | ✓ | | ✓ | |
 
@@ -75,6 +75,7 @@ thing on the server** — hiding a button is a convenience, not the protection.
 | `clients/{id}`       | A direct or B2B client                                  |
 | `pilots/{id}`        | A remote pilot and their DGCA certificate               |
 | `places/{id}`        | State / city / area, remembered for the next booking    |
+| `quotations/{id}`    | A priced letter on the company letterhead               |
 | `invoices/{id}`      | A tax invoice, on the company's own printed format      |
 | `payments/{id}`      | One receipt, linked by `showId`                         |
 | `expenses/{id}`      | Money out that is not salary or commission              |

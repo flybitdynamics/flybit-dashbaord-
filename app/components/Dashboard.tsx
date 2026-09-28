@@ -28,6 +28,7 @@ import {
   upsertClient,
   upsertShow,
 } from "../lib/store";
+import { ImportShowsDialog } from "./ImportShowsDialog";
 import { useAuth } from "./AuthProvider";
 import { DocumentsDialog } from "./DocumentsDialog";
 import { FilterState, Filters, defaultFilters } from "./Filters";
@@ -43,7 +44,8 @@ type Dialog =
   | { kind: "detail"; show: Show }
   | { kind: "show"; show: Show | null }
   | { kind: "payments"; show: Show }
-  | { kind: "documents"; show: Show };
+  | { kind: "documents"; show: Show }
+  | { kind: "import" };
 
 export function Dashboard() {
   const { can } = useAuth();
@@ -222,6 +224,15 @@ export function Dashboard() {
             {canCreate && (
               <button
                 type="button"
+                onClick={() => setDialog({ kind: "import" })}
+                className="rounded-md bg-neutral-100 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-200"
+              >
+                Import
+              </button>
+            )}
+            {canCreate && (
+              <button
+                type="button"
                 onClick={() => setDialog({ kind: "show", show: null })}
                 className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
               >
@@ -280,6 +291,17 @@ export function Dashboard() {
         </>
       )}
 
+      {dialog.kind === "import" && (
+        <ImportShowsDialog
+          shows={shows}
+          onDone={(count) => {
+            setDialog({ kind: "none" });
+            window.alert(`${count} row${count === 1 ? "" : "s"} imported.`);
+          }}
+          onClose={() => setDialog({ kind: "none" })}
+        />
+      )}
+
       {dialog.kind === "detail" && (
         <ShowDetailDialog
           key={dialog.show.id}
@@ -291,6 +313,7 @@ export function Dashboard() {
           canEdit={canEditShow}
           canDocuments={canDocuments}
           canInvoice={can("invoices", "create")}
+          canQuote={can("quotations", "create")}
           onStage={(status) => setShowStatus(dialog.show.id, status)}
           onEdit={() => setDialog({ kind: "show", show: live(dialog.show) })}
           onPayments={() => setDialog({ kind: "payments", show: dialog.show })}

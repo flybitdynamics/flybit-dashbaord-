@@ -108,7 +108,7 @@ export interface AuditLog {
   actorName: string;
   actorEmail: string;
   action: LogAction;
-  entityType: "show" | "client" | "pilot" | "payment" | "expense" | "invoice" | "user" | "settings";
+  entityType: "show" | "client" | "pilot" | "payment" | "expense" | "invoice" | "quotation" | "user" | "settings";
   entityId: string;
   entityTitle: string;
   details: string;
@@ -125,6 +125,9 @@ export interface Settings {
   companyPhone: string;
   /** Printed on the tax invoice under the address. */
   gstin: string;
+  /* The quotation letterhead's own contact line. */
+  letterheadEmail: string;
+  website: string;
   /* Bank details, printed under the notes on every invoice. */
   bankAccountName: string;
   bankAccountNumber: string;
@@ -156,6 +159,8 @@ export const DEFAULT_SETTINGS: Settings = {
   companyEmail: "flybitdynamics@gmail.com",
   companyPhone: "+91 92274 28262",
   gstin: "24AAGCF1802L1ZU",
+  letterheadEmail: "info@flybitdynamics.com",
+  website: "www.flybitdynamics.com",
   bankAccountName: "FLYBIT DYNAMICS PVT LTD",
   // Fill this in — it is the one bank value the invoice does not know yet.
   bankAccountNumber: "5020 0120 9009 90",
@@ -426,10 +431,11 @@ function parts(iso: string): { y: number; m: number; d: number } | null {
   return { y, m, d };
 }
 
+/** "25 SEP 2026" — the form the desk shows dates in. */
 export function formatDate(iso: string): string {
   const p = parts(iso);
   if (!p) return "—";
-  return `${String(p.d).padStart(2, "0")} ${MONTHS_SHORT[p.m - 1]} ${p.y}`;
+  return `${String(p.d).padStart(2, "0")} ${MONTHS_SHORT[p.m - 1].toUpperCase()} ${p.y}`;
 }
 
 /** "27th Aug, 2026" — the form the annexures use. */

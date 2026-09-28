@@ -75,9 +75,12 @@ export function newId(): string {
 }
 
 export function sortShows(shows: Show[]): Show[] {
+  /* An inquiry with no date yet belongs after the ones that have one,
+     not above every booking in the desk. */
+  const when = (show: Show) => show.showDate || "9999-12-31";
   return [...shows].sort(
     (a, b) =>
-      a.showDate.localeCompare(b.showDate) ||
+      when(a).localeCompare(when(b)) ||
       a.showStartTime.localeCompare(b.showStartTime),
   );
 }

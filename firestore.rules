@@ -139,6 +139,14 @@ service cloud.firestore {
       allow delete: if can("invoices", "delete");
     }
 
+    // Quotations carry prices that are not yet bookings.
+    match /quotations/{id} {
+      allow read: if can("quotations", "view") || can("invoices", "view") || can("finance", "view");
+      allow create: if can("quotations", "create");
+      allow update: if can("quotations", "edit");
+      allow delete: if can("quotations", "delete");
+    }
+
     match /payments/{id} {
       allow read: if can("finance", "view") || can("shows", "view");
       allow create: if can("finance", "create");
