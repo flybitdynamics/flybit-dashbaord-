@@ -549,41 +549,56 @@ textarea.inv-edit {
 }
 
 /* ------------------------------------------------------------------ *
- * Printing. The sheet already carries the page's margins, so the page
- * box gets none — that is what keeps it identical to the original PDF.
+ * Printing.
+ *
+ * The document is rendered into the body itself, so printing is a matter
+ * of taking everything else out of the page — not hiding it. Hidden-but-
+ * present markup still occupies space, which pushed the sheet a third of
+ * the way down the paper and spilled it onto an extra page.
  * ------------------------------------------------------------------ */
 
 @page {
-  size: A4;
   margin: 0;
 }
 
 @media print {
-  body * {
-    visibility: hidden;
+  body > *:not(.print-root) {
+    display: none !important;
   }
 
-  .inv-sheet,
-  .inv-sheet *,
-  .q-sheet,
-  .q-sheet * {
-    visibility: visible;
+  .print-root,
+  .print-host {
+    position: static !important;
+    display: block !important;
+    inset: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
   }
 
-  .inv-sheet {
-    position: absolute;
-    top: 0;
-    left: 0;
-    margin: 0;
-    box-shadow: none;
-  }
-
-  /* Nothing of the editor reaches the paper: no field boxes, no
-     placeholder text, no row controls. */
+  /* Editing controls are not part of the document. */
   .inv-noprint {
     display: none !important;
   }
 
+  .inv-sheet,
+  .q-sheet {
+    position: static !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* The on-screen preview may be scaled down; the paper never is. */
+  .inv-zoom {
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  /* Nothing of the editor reaches the paper: no field boxes, no
+     placeholder text, no row controls. */
   .inv-edit {
     background: transparent !important;
     box-shadow: none !important;
@@ -592,25 +607,6 @@ textarea.inv-edit {
   .inv-edit::placeholder {
     color: transparent !important;
     opacity: 0 !important;
-  }
-
-  /* The quotation runs to two pages, so it prints in the normal flow
-     rather than pinned to the top-left: its wrappers step out of the way
-     and the page breaks fall between the sheets. */
-  .q-print-host {
-    position: static !important;
-    display: block !important;
-    overflow: visible !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    background: none !important;
-  }
-
-  /* The on-screen preview may be scaled down; the paper never is. */
-  .inv-zoom {
-    transform: none !important;
-    width: auto !important;
-    height: auto !important;
   }
 }
 
@@ -632,8 +628,10 @@ textarea.inv-edit {
 }
 
 .q-page {
+  /* A4's width, US Letter's height: the one box that fits on either
+     paper without pushing content onto an extra page. */
   width: 595.4pt;
-  height: 841.7pt;
+  height: 792pt;
   padding: 0 84.7pt;
   background: #fff;
   display: flex;
@@ -746,13 +744,20 @@ textarea.inv-edit {
 .q-body {
   flex: 1;
   min-height: 0;
-  padding-top: 26pt;
+  padding-top: 18.5pt;
+}
+
+/* Page two's letter starts well down the page, as on the original. */
+.q-page-two .q-body {
+  display: flex;
+  flex-direction: column;
+  padding-top: 136pt;
 }
 
 /* ---- the letter ---- */
 
 .q-meta {
-  margin-bottom: 30pt;
+  margin-bottom: 22pt;
 }
 
 .q-edit-number,
@@ -761,11 +766,11 @@ textarea.inv-edit {
 }
 
 .q-to {
-  margin-bottom: 38pt;
+  margin-bottom: 36pt;
 }
 
 .q-subject {
-  margin-bottom: 14pt;
+  margin-bottom: 4pt;
 }
 
 /* ---- the priced table ---- */
@@ -798,22 +803,22 @@ textarea.inv-edit {
 }
 
 .q-tax-note {
-  margin-top: 12pt;
+  margin-top: 16pt;
   text-align: center;
   font-style: italic;
 }
 
 .q-scope-note {
-  margin-top: 14pt;
+  margin-top: 10pt;
 }
 
 .q-closing {
-  margin-top: 30pt;
+  margin-top: 38pt;
   font-weight: 700;
 }
 
 .q-signer {
-  margin-top: 36pt;
+  margin-top: 46pt;
   font-weight: 700;
 }
 
@@ -825,7 +830,7 @@ textarea.inv-edit {
 }
 
 .q-heading-gap {
-  margin-top: 46pt;
+  margin-top: 56pt;
 }
 
 .q-bullets {
@@ -839,7 +844,8 @@ textarea.inv-edit {
 }
 
 .q-confidential {
-  margin-top: 96pt;
+  margin-top: auto;
+  margin-bottom: 32pt;
   text-align: center;
   font-size: 6.5pt;
   line-height: 9pt;
@@ -850,14 +856,14 @@ textarea.inv-edit {
 
 .q-footer {
   flex: none;
-  padding-bottom: 64pt;
+  padding-bottom: 58pt;
 }
 
 .q-rule {
   height: 3.5pt;
   border-radius: 2pt;
   background: #f6a20a;
-  margin: 0 -22pt 18pt -46pt;
+  margin: 0 -22pt 14pt -46pt;
 }
 
 .q-address {

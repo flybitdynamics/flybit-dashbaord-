@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   INVOICE_STATUSES,
   Invoice,
@@ -115,8 +116,8 @@ export function InvoiceEditor({
     return () => document.removeEventListener("keydown", onKey);
   });
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-neutral-200/90">
+  const overlay = (
+    <div className="print-root fixed inset-0 z-50 flex flex-col bg-neutral-200/90">
       {/* ---------------- the bar above the paper ---------------- */}
       <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-white px-3 py-2">
         <button type="button" onClick={close} aria-label="Close" className={bar}>
@@ -315,7 +316,7 @@ export function InvoiceEditor({
       )}
 
       {/* ---------------- the paper ---------------- */}
-      <div className="flex-1 overflow-auto p-4 sm:p-8">
+      <div className="print-host flex-1 overflow-auto p-4 sm:p-8">
         <div className="mx-auto" style={{ width: SHEET_W * zoom, height: SHEET_H * zoom }}>
           <div
             className="inv-zoom shadow-2xl"
@@ -346,4 +347,8 @@ export function InvoiceEditor({
       </div>
     </div>
   );
+
+  /* Printing takes everything but this out of the page, which only works
+     if the sheet is a child of the body rather than of the app's layout. */
+  return typeof document === "undefined" ? overlay : createPortal(overlay, document.body);
 }

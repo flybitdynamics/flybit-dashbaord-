@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   QUOTATION_STATUSES,
   Quotation,
@@ -115,8 +116,8 @@ export function QuotationEditor({
     return () => document.removeEventListener("keydown", onKey);
   });
 
-  return (
-    <div className="q-print-host fixed inset-0 z-50 flex flex-col bg-neutral-200/90">
+  const overlay = (
+    <div className="print-root fixed inset-0 z-50 flex flex-col bg-neutral-200/90">
       <div className="inv-noprint flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-white px-3 py-2">
         <button type="button" onClick={close} aria-label="Close" className={bar}>
           ←
@@ -254,7 +255,7 @@ export function QuotationEditor({
         </div>
       )}
 
-      <div className="q-print-host flex-1 overflow-auto p-4 sm:p-8">
+      <div className="print-host flex-1 overflow-auto p-4 sm:p-8">
         <div
           className="mx-auto"
           style={{ width: PAGE_W * zoom, height: (PAGE_H * 2 + 22) * zoom }}
@@ -284,4 +285,8 @@ export function QuotationEditor({
       </div>
     </div>
   );
+
+  /* Printing takes everything but this out of the page, which only works
+     if the sheet is a child of the body rather than of the app's layout. */
+  return typeof document === "undefined" ? overlay : createPortal(overlay, document.body);
 }
