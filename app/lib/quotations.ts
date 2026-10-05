@@ -153,6 +153,37 @@ export function duplicateOfQuotation(
   };
 }
 
+/** The last two digits of "#FD00069" → "69". */
+function quotationSerial(number: string): string {
+  const digits = number.replace(/\D/g, "");
+  return digits.slice(-2).padStart(2, "0") || "00";
+}
+
+/** "2026-09-29" → "29 sept 2026". Leaves a typed date as it stands. */
+function quotationFileDate(value: string): string {
+  const raw = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw.toLowerCase();
+  const formatted = formatDate(raw);
+  if (formatted === "—") return raw;
+  const [day, month, year] = formatted.split(" ");
+  return `${Number(day)} ${month.toLowerCase()} ${year}`;
+}
+
+/** The name the browser offers when you Save as PDF:
+ *  "01. Flybit Quotation 29 sept 2026 Client". */
+export function quotationPdfName(
+  quotation: Pick<Quotation, "number" | "date" | "to">,
+  clientName = "",
+): string {
+  const who = (clientName || quotation.to.split("\n")[0] || "").trim();
+  return [`${quotationSerial(quotation.number)}. Flybit Quotation`, quotationFileDate(quotation.date), who]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/[\\/:*?"<>|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Start one from a booking: who it is for, and the event the price is for. */
 export function quotationFromShow(
   draft: Omit<Quotation, "id">,

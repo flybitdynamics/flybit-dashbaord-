@@ -9,6 +9,7 @@ import {
   QuotationStatus,
   emptyRow,
   quotationFromShow,
+  quotationPdfName,
 } from "../../lib/quotations";
 import { Client, Settings, Show, formatDate, isOpen } from "../../lib/types";
 import { QuotationSheet } from "./QuotationSheet";
@@ -102,6 +103,18 @@ export function QuotationEditor({
     }
     onSave(draft, quotation?.id ?? null);
     setDirty(false);
+  }
+
+  /** The print dialog names the PDF from the page title. */
+  function printPdf() {
+    const client = clients.find((c) => c.id === draft.clientId);
+    const previous = document.title;
+    document.title = quotationPdfName(draft, client?.name);
+    const restore = () => {
+      document.title = previous;
+    };
+    window.addEventListener("afterprint", restore, { once: true });
+    window.print();
   }
 
   useEffect(() => {
@@ -234,7 +247,7 @@ export function QuotationEditor({
           </button>
         )}
 
-        <button type="button" onClick={() => window.print()} className={bar}>
+        <button type="button" onClick={printPdf} className={bar}>
           Print / PDF
         </button>
 
