@@ -316,8 +316,8 @@ async function bakeImageCrops(zip, parts) {
       zip.file(mediaPath, cropped);
       applied.push(
         `${mediaPath} ${width}x${height} -> ${cropWidth}x${cropHeight}` +
-          ` (l${(l * 100).toFixed(2)}% t${(t * 100).toFixed(2)}%` +
-          ` r${(r * 100).toFixed(2)}% b${(b * 100).toFixed(2)}%)`,
+        ` (l${(l * 100).toFixed(2)}% t${(t * 100).toFixed(2)}%` +
+        ` r${(r * 100).toFixed(2)}% b${(b * 100).toFixed(2)}%)`,
       );
     }
 
@@ -406,7 +406,7 @@ async function bakeHeaderBleed(zip, headerParts, headerDistanceTwips) {
 
       applied.push(
         `${part} letterhead: trimmed ${cutPt.toFixed(1)}pt that Word prints off-page,` +
-          ` height ${heightPt.toFixed(1)}pt -> ${(heightPt - cutPt).toFixed(1)}pt`,
+        ` height ${heightPt.toFixed(1)}pt -> ${(heightPt - cutPt).toFixed(1)}pt`,
       );
     }
 

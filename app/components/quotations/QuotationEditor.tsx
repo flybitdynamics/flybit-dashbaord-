@@ -270,7 +270,7 @@ export function QuotationEditor({
 
       <div className="print-host flex-1 overflow-auto p-4 sm:p-8">
         <div
-          className="mx-auto"
+          className="inv-zoom-wrap mx-auto"
           style={{ width: PAGE_W * zoom, height: (PAGE_H * 2 + 22) * zoom }}
         >
           <div

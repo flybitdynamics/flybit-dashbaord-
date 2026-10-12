@@ -104,6 +104,18 @@ export function InvoiceEditor({
     setDirty(false);
   }
 
+  /** The print dialog names the PDF from the invoice number. */
+  function printPdf() {
+    const previous = document.title;
+    const safeNum = draft.number ? draft.number.replace(/\//g, "-") : "Invoice";
+    document.title = safeNum;
+    const restore = () => {
+      document.title = previous;
+    };
+    window.addEventListener("afterprint", restore, { once: true });
+    window.print();
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
@@ -119,7 +131,7 @@ export function InvoiceEditor({
   const overlay = (
     <div className="print-root fixed inset-0 z-50 flex flex-col bg-neutral-200/90">
       {/* ---------------- the bar above the paper ---------------- */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-white px-3 py-2">
+      <div className="inv-noprint flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-white px-3 py-2">
         <button type="button" onClick={close} aria-label="Close" className={bar}>
           ←
         </button>
@@ -277,7 +289,7 @@ export function InvoiceEditor({
           </button>
         )}
 
-        <button type="button" onClick={() => window.print()} className={bar}>
+        <button type="button" onClick={printPdf} className={bar}>
           Print / PDF
         </button>
 
@@ -294,7 +306,7 @@ export function InvoiceEditor({
 
       {/* ---------------- notices ---------------- */}
       {(problem || (linked && received !== draft.paymentMade && canEdit)) && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-2 text-xs">
+        <div className="inv-noprint flex flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-2 text-xs">
           {problem ? (
             <span className="font-medium text-red-700">{problem}</span>
           ) : (
@@ -317,7 +329,7 @@ export function InvoiceEditor({
 
       {/* ---------------- the paper ---------------- */}
       <div className="print-host flex-1 overflow-auto p-4 sm:p-8">
-        <div className="mx-auto" style={{ width: SHEET_W * zoom, height: SHEET_H * zoom }}>
+        <div className="inv-zoom-wrap mx-auto" style={{ width: SHEET_W * zoom, height: SHEET_H * zoom }}>
           <div
             className="inv-zoom shadow-2xl"
             style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: SHEET_W }}
@@ -328,19 +340,19 @@ export function InvoiceEditor({
               edit={
                 canEdit
                   ? {
-                      onChange: change,
-                      onLineChange: changeLine,
-                      onRemoveLine: (id) =>
-                        change({ lines: draft.lines.filter((line) => line.id !== id) }),
-                      clients,
-                    }
+                    onChange: change,
+                    onLineChange: changeLine,
+                    onRemoveLine: (id) =>
+                      change({ lines: draft.lines.filter((line) => line.id !== id) }),
+                    clients,
+                  }
                   : undefined
               }
             />
           </div>
         </div>
 
-        <p className="mx-auto pb-4 pt-3 text-center text-[11px] text-neutral-500">
+        <p className="inv-noprint mx-auto pb-4 pt-3 text-center text-[11px] text-neutral-500">
           Balance due {formatMoney(totals.balance)} · printing uses A4 with the browser&rsquo;s
           default margins — the sheet carries its own.
         </p>
