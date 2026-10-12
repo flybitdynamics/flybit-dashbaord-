@@ -13,7 +13,7 @@ import {
   invoiceFromShow,
   totalsFor,
 } from "../../lib/invoices";
-import { Client, Payment, Settings, Show, formatDate, formatMoney, isBooked, receivedFor } from "../../lib/types";
+import { Client, Payment, Settings, Show, daysAway, formatDate, formatMoney, isBooked, receivedFor, todayISO } from "../../lib/types";
 import { InvoiceSheet } from "./InvoiceSheet";
 
 /** A4 at 96dpi — what the sheet measures on screen. */
@@ -160,7 +160,21 @@ export function InvoiceEditor({
               aria-label="Status"
               className={select}
               value={draft.status}
-              onChange={(e) => change({ status: e.target.value as InvoiceStatus })}
+              onChange={(e) => {
+                const nextStatus = e.target.value as InvoiceStatus;
+                if (nextStatus === "paid" && draft.paymentMade < totals.total) {
+                  change({ status: nextStatus, paymentMade: totals.total });
+                } else if (nextStatus === "sent") {
+                  const days = daysAway(draft.dueDate);
+                  if (days !== null && days < 0) {
+                    change({ status: nextStatus, dueDate: todayISO() });
+                  } else {
+                    change({ status: nextStatus });
+                  }
+                } else {
+                  change({ status: nextStatus });
+                }
+              }}
             >
               {(Object.keys(INVOICE_STATUSES) as InvoiceStatus[]).map((key) => (
                 <option key={key} value={key}>

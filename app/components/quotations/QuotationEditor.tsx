@@ -283,13 +283,13 @@ export function QuotationEditor({
               edit={
                 canEdit
                   ? {
-                      onChange: change,
-                      onRowChange: changeRow,
-                      onAddRow: addRow,
-                      onRemoveRow: (id) =>
-                        change({ rows: draft.rows.filter((row) => row.id !== id) }),
-                      onListChange: (key, next) => change({ [key]: next }),
-                    }
+                    onChange: change,
+                    onRowChange: changeRow,
+                    onAddRow: addRow,
+                    onRemoveRow: (id) =>
+                      change({ rows: draft.rows.filter((row) => row.id !== id) }),
+                    onListChange: (key, next) => change({ [key]: next }),
+                  }
                   : undefined
               }
             />

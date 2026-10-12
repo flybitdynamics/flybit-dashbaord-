@@ -21,9 +21,9 @@ import {
 import {
   DEFAULT_SETTINGS,
   daysAway,
-  formatCompactMoney,
   formatDate,
   formatMoney,
+  todayISO,
 } from "../../lib/types";
 import { useAuth } from "../AuthProvider";
 import { SiteHeader } from "../SiteHeader";
@@ -37,14 +37,16 @@ type Open =
 /** What the row should say, which is not always the stored status: an
  *  invoice that is fully paid reads Paid, and an unpaid one past its due
  *  date reads Overdue. */
-type Standing = InvoiceStatus | "overdue";
+type Standing = InvoiceStatus;
 
 function standingOf(invoice: Invoice, balance: number): Standing {
   if (invoice.status === "cancelled") return "cancelled";
-  if (balance <= 0) return "paid";
+  if (invoice.status === "paid" || balance <= 0) return "paid";
+  if (invoice.status === "draft") return "draft";
+  if (invoice.status === "overdue") return "overdue";
   const days = daysAway(invoice.dueDate);
-  if (days !== null && days < 0) return "overdue";
-  return invoice.status === "paid" ? "sent" : invoice.status;
+  if (days !== null && days < 0 && balance > 0) return "overdue";
+  return invoice.status;
 }
 
 const STANDING_STYLE: Record<Standing, string> = {
@@ -55,7 +57,7 @@ const STANDING_STYLE: Record<Standing, string> = {
   cancelled: "bg-neutral-100 text-neutral-400",
 };
 
-const STANDING_LABEL: Record<Standing, string> = { ...INVOICE_STATUSES, overdue: "Overdue" };
+const STANDING_LABEL: Record<Standing, string> = INVOICE_STATUSES;
 
 function StatusPill({ standing }: { standing: Standing }) {
   return (
@@ -142,12 +144,14 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
     (acc, row) => {
       if (row.standing === "cancelled") return acc;
       acc.invoiced += row.totals.total;
+      acc.taxTotal += row.totals.taxTotal;
+      acc.subTotal += row.totals.subTotal;
       acc.received += Math.min(row.invoice.paymentMade, row.totals.total);
       acc.outstanding += Math.max(0, row.totals.balance);
       if (row.standing === "overdue") acc.overdue += 1;
       return acc;
     },
-    { invoiced: 0, received: 0, outstanding: 0, overdue: 0 },
+    { invoiced: 0, received: 0, outstanding: 0, overdue: 0, taxTotal: 0, subTotal: 0 },
   );
 
   const visible = rows.filter(({ invoice, standing }) => {
@@ -168,6 +172,21 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
     setOpen({ kind: "sheet", invoice: { ...draft, id: savedId }, draft });
   }
 
+  function handleStatusChange(invoice: Invoice, nextStatus: InvoiceStatus) {
+    const totals = totalsFor(invoice);
+    const patch: Partial<Omit<Invoice, "id">> = { status: nextStatus };
+    if (nextStatus === "paid" && invoice.paymentMade < totals.total) {
+      patch.paymentMade = totals.total;
+    } else if (nextStatus === "sent") {
+      const days = daysAway(invoice.dueDate);
+      if (days !== null && days < 0) {
+        patch.dueDate = todayISO();
+      }
+    }
+    const updated: Omit<Invoice, "id"> = { ...invoice, ...patch };
+    upsertInvoice(updated, invoice.id);
+  }
+
   function handleDelete(invoice: Invoice) {
     if (!window.confirm(`Delete invoice ${invoice.number}? This cannot be undone.`)) return;
     removeInvoice(invoice.id);
@@ -175,10 +194,26 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
   }
 
   const tiles = [
-    { label: "Invoiced", value: formatCompactMoney(summary.invoiced), note: `${rows.length} invoice${rows.length === 1 ? "" : "s"}` },
-    { label: "Received", value: formatCompactMoney(summary.received), note: "marked as paid on the invoices" },
-    { label: "Outstanding", value: formatCompactMoney(summary.outstanding), note: "still to collect" },
-    { label: "Overdue", value: String(summary.overdue), note: "past the due date and unpaid" },
+    {
+      label: "Invoiced",
+      value: formatMoney(summary.invoiced),
+      note: `${rows.length} invoice${rows.length === 1 ? "" : "s"} · incl. ${formatMoney(summary.taxTotal)} GST`,
+    },
+    {
+      label: "Received",
+      value: formatMoney(summary.received),
+      note: "marked as paid on the invoices",
+    },
+    {
+      label: "Outstanding",
+      value: formatMoney(summary.outstanding),
+      note: "still to collect (incl. GST)",
+    },
+    {
+      label: "Overdue",
+      value: String(summary.overdue),
+      note: "past the due date and unpaid",
+    },
   ];
 
   const filters: Array<Standing | "all"> = ["all", "draft", "sent", "overdue", "paid", "cancelled"];
@@ -308,7 +343,12 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
                           {formatDate(invoice.dueDate)}
                         </td>
                         <td className="tnum px-3 py-2.5 text-right font-mono text-[13px] text-neutral-900">
-                          {formatMoney(totals.total)}
+                          <div>{formatMoney(totals.total)}</div>
+                          {totals.taxTotal > 0 && (
+                            <div className="font-sans text-[11px] text-neutral-400">
+                              incl. {formatMoney(totals.taxTotal)} GST
+                            </div>
+                          )}
                         </td>
                         <td
                           className={`tnum px-3 py-2.5 text-right font-mono text-[13px] ${
@@ -317,8 +357,29 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
                         >
                           {formatMoney(Math.max(0, totals.balance))}
                         </td>
-                        <td className="px-3 py-2.5">
-                          <StatusPill standing={standing} />
+                        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                          {canEdit ? (
+                            <div className="relative inline-flex items-center">
+                              <select
+                                value={standing}
+                                onChange={(e) =>
+                                  handleStatusChange(invoice, e.target.value as InvoiceStatus)
+                                }
+                                className={`cursor-pointer appearance-none rounded-full py-0.5 pl-2.5 pr-5 text-[11px] font-medium transition-colors hover:opacity-85 focus:outline-none focus:ring-1 focus:ring-neutral-400 ${STANDING_STYLE[standing]}`}
+                              >
+                                {(Object.keys(INVOICE_STATUSES) as InvoiceStatus[]).map((key) => (
+                                  <option key={key} value={key}>
+                                    {INVOICE_STATUSES[key]}
+                                  </option>
+                                ))}
+                              </select>
+                              <span className="pointer-events-none absolute right-1.5 text-[8px] opacity-50">
+                                ▼
+                              </span>
+                            </div>
+                          ) : (
+                            <StatusPill standing={standing} />
+                          )}
                         </td>
                         <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-1">

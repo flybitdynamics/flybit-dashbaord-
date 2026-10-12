@@ -7,7 +7,7 @@
 
 import { Client, Settings, Show, todayISO } from "./types";
 
-export type InvoiceStatus = "draft" | "sent" | "paid" | "cancelled";
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
 
 /** Within the same state the tax splits into CGST + SGST; across states it
  *  is a single IGST at the full rate. */
@@ -17,6 +17,7 @@ export const INVOICE_STATUSES: Record<InvoiceStatus, string> = {
   draft: "Draft",
   sent: "Sent",
   paid: "Paid",
+  overdue: "Overdue",
   cancelled: "Cancelled",
 };
 
@@ -157,9 +158,9 @@ export function normalizeInvoice(id: string, raw: Record<string, unknown>): Invo
     billTo: party(raw.billTo),
     lines: Array.isArray(raw.lines) && raw.lines.length > 0
       ? (raw.lines as InvoiceLine[]).map((line, index) => ({
-          ...emptyLine(line?.id || `line-${index + 1}`),
-          ...line,
-        }))
+        ...emptyLine(line?.id || `line-${index + 1}`),
+        ...line,
+      }))
       : [emptyLine("line-1")],
   };
 }
