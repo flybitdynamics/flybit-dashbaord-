@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   getServerSnapshot,
   getSnapshot,
@@ -79,6 +79,41 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
   const [linkUsed, setLinkUsed] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Standing | "all">("all");
+
+  const [driveStatus, setDriveStatus] = useState<{
+    configured: boolean;
+    connected: boolean;
+    folderId: string | null;
+  } | null>(null);
+  const [driveBanner, setDriveBanner] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/drive/status")
+      .then((res) => res.json())
+      .then((data) => setDriveStatus(data))
+      .catch(() => {});
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("drive") === "connected") {
+        setDriveBanner({
+          type: "success",
+          message:
+            "Google Drive connected successfully! Invoices can now be uploaded directly to the 'Invoice 26-27' folder.",
+        });
+        window.history.replaceState({}, "", window.location.pathname);
+      } else if (params.get("drive_error")) {
+        setDriveBanner({
+          type: "error",
+          message: `Google Drive connection failed: ${params.get("drive_error")}`,
+        });
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, []);
 
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const ready = state !== null;
@@ -224,17 +259,65 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
         title="Invoices"
         subtitle="Tax invoices in the company's own format — raise one from a show, then print or save as PDF"
         actions={
-          canCreate && (
-            <button
-              type="button"
-              onClick={() => setOpen({ kind: "sheet", invoice: null, draft: blank() })}
-              className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-            >
-              + New invoice
-            </button>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            {driveStatus?.connected ? (
+              <a
+                href={`https://drive.google.com/drive/folders/${driveStatus.folderId || "1elc_ysRL4UuEt_49JuspIO5Cc7hq6eBv"}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
+                title="Open Invoice 26-27 folder in Google Drive"
+              >
+                <span className="size-2 rounded-full bg-emerald-500" />
+                <span>Drive Folder</span>
+                <span className="text-[10px] text-neutral-400">↗</span>
+              </a>
+            ) : (
+              <a
+                href="/api/drive/auth"
+                className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 shadow-sm hover:bg-amber-100"
+                title="Connect Google Drive for invoice auto-uploads"
+              >
+                <svg className="size-3.5 text-amber-700" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
+                </svg>
+                <span>Connect Drive</span>
+              </a>
+            )}
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => setOpen({ kind: "sheet", invoice: null, draft: blank() })}
+                className="rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+              >
+                + New invoice
+              </button>
+            )}
+          </div>
         }
       />
+
+      {driveBanner && (
+        <div
+          className={`flex items-center justify-between gap-3 rounded-lg border p-3 text-xs ${
+            driveBanner.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-red-200 bg-red-50 text-red-900"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-bold">{driveBanner.type === "success" ? "✓" : "⚠️"}</span>
+            <span>{driveBanner.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDriveBanner(null)}
+            className="text-xs font-semibold opacity-60 hover:opacity-100"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {!ready ? (
         <div className="card flex h-24 items-center justify-center text-sm text-neutral-500">
@@ -270,11 +353,10 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
                   key={key}
                   type="button"
                   onClick={() => setFilter(key)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                    filter === key
-                      ? "bg-neutral-900 text-white"
-                      : "bg-white text-neutral-600 shadow-sm hover:bg-neutral-100"
-                  }`}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${filter === key
+                    ? "bg-neutral-900 text-white"
+                    : "bg-white text-neutral-600 shadow-sm hover:bg-neutral-100"
+                    }`}
                 >
                   {key === "all" ? "All" : STANDING_LABEL[key]}
                 </button>
@@ -314,9 +396,8 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
                       <tr
                         key={invoice.id}
                         onClick={() => edit(invoice)}
-                        className={`row-line cursor-pointer hover:bg-neutral-50 ${
-                          standing === "cancelled" ? "text-neutral-400" : ""
-                        }`}
+                        className={`row-line cursor-pointer hover:bg-neutral-50 ${standing === "cancelled" ? "text-neutral-400" : ""
+                          }`}
                       >
                         <td className="px-4 py-2.5">
                           <div className="font-mono text-[13px] font-semibold text-neutral-900">
@@ -351,9 +432,8 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
                           )}
                         </td>
                         <td
-                          className={`tnum px-3 py-2.5 text-right font-mono text-[13px] ${
-                            totals.balance > 0 ? "text-neutral-900" : "text-neutral-400"
-                          }`}
+                          className={`tnum px-3 py-2.5 text-right font-mono text-[13px] ${totals.balance > 0 ? "text-neutral-900" : "text-neutral-400"
+                            }`}
                         >
                           {formatMoney(Math.max(0, totals.balance))}
                         </td>

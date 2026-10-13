@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   INVOICE_STATUSES,
@@ -15,6 +15,8 @@ import {
 } from "../../lib/invoices";
 import { Client, Payment, Settings, Show, daysAway, formatDate, formatMoney, isBooked, receivedFor, todayISO } from "../../lib/types";
 import { InvoiceSheet } from "./InvoiceSheet";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 /** A4 at 96dpi — what the sheet measures on screen. */
 const SHEET_W = 794;
@@ -104,6 +106,14 @@ export function InvoiceEditor({
     setDirty(false);
   }
 
+  const [isExporting, setIsExporting] = useState(false);
+  const [uploadingToDrive, setUploadingToDrive] = useState(false);
+  const [driveNotice, setDriveNotice] = useState<{
+    type: "success" | "error";
+    message: string;
+    link?: string;
+  } | null>(null);
+
   /** The print dialog names the PDF from the invoice number. */
   function printPdf() {
     const previous = document.title;
@@ -114,6 +124,131 @@ export function InvoiceEditor({
     };
     window.addEventListener("afterprint", restore, { once: true });
     window.print();
+  }
+
+  /** Direct 1-click upload to Google Drive without any local file picking */
+  async function uploadDirectlyToDrive() {
+    if (uploadingToDrive) return;
+    setUploadingToDrive(true);
+    setDriveNotice(null);
+
+    try {
+      // 1. Check Drive credentials and connection
+      const statusRes = await fetch("/api/drive/status");
+      const statusData = await statusRes.json();
+      if (!statusData.configured) {
+        setDriveNotice({
+          type: "error",
+          message:
+            "Google Drive OAuth credentials are not set. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env.",
+        });
+        setUploadingToDrive(false);
+        return;
+      }
+      if (!statusData.connected) {
+        if (
+          window.confirm(
+            "Google Drive is not connected yet. Would you like to connect it now?"
+          )
+        ) {
+          window.location.href = "/api/drive/auth";
+        }
+        setUploadingToDrive(false);
+        return;
+      }
+
+      // 2. Auto-save changes if valid
+      if (dirty && canEdit && draft.number.trim() && draft.billTo.name.trim()) {
+        onSave(draft, invoice?.id ?? null);
+        setDirty(false);
+      }
+
+      // 3. Temporarily switch sheet to pure read/print mode (removes all inputs, blue boxes, placeholders, delete buttons)
+      const prevZoom = zoom;
+      setIsExporting(true);
+      setZoom(1);
+
+      // Wait 120ms for React to update DOM at 100% scale
+      await new Promise((r) => setTimeout(r, 120));
+
+      const sheetEl = document.querySelector(".print-host .inv-sheet") as HTMLElement | null;
+      if (!sheetEl) {
+        throw new Error("Could not find invoice sheet for export.");
+      }
+
+      // Ensure fonts and images are ready
+      if (document.fonts) {
+        await document.fonts.ready;
+      }
+      const imgs = Array.from(sheetEl.querySelectorAll("img"));
+      await Promise.all(
+        imgs.map((img) => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(true);
+          });
+        })
+      );
+
+      // Render crisp 300dpi canvas directly from the clean sheet
+      const canvas = await html2canvas(sheetEl, {
+        scale: 3,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: SHEET_W,
+      });
+
+      // Restore zoom and edit mode immediately
+      setIsExporting(false);
+      setZoom(prevZoom);
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 595.28 pt
+      const pageHeight = pdf.internal.pageSize.getHeight(); // 841.89 pt
+      const pdfHeight = Math.min(pageHeight, (canvas.height * pdfWidth) / canvas.width);
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight, undefined, "FAST");
+
+      const blob = pdf.output("blob");
+      const safeNum = draft.number ? draft.number.replace(/\//g, "-") : "Invoice";
+      const fileName = `${safeNum}.pdf`;
+
+      const formData = new FormData();
+      formData.append("file", blob, fileName);
+      formData.append("fileName", fileName);
+
+      const res = await fetch("/api/drive/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to upload to Google Drive");
+      }
+
+      setDriveNotice({
+        type: "success",
+        message: `Saved ${fileName} directly to Google Drive (Invoice 26-27)!`,
+        link: data.webViewLink,
+      });
+    } catch (err: unknown) {
+      setIsExporting(false);
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setDriveNotice({
+        type: "error",
+        message: msg,
+      });
+    } finally {
+      setUploadingToDrive(false);
+    }
   }
 
   useEffect(() => {
@@ -129,7 +264,8 @@ export function InvoiceEditor({
   });
 
   const overlay = (
-    <div className="print-root fixed inset-0 z-50 flex flex-col bg-neutral-200/90">
+    <div className="print-root fixed inset-0 z-50 flex flex-col bg-neutral-200">
+
       {/* ---------------- the bar above the paper ---------------- */}
       <div className="inv-noprint flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-white px-3 py-2">
         <button type="button" onClick={close} aria-label="Close" className={bar}>
@@ -307,6 +443,28 @@ export function InvoiceEditor({
           Print / PDF
         </button>
 
+        <button
+          type="button"
+          onClick={uploadDirectlyToDrive}
+          disabled={uploadingToDrive}
+          className={`${bar} flex items-center gap-1.5 font-medium text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900 border border-emerald-300 bg-emerald-50/70`}
+          title="Upload this invoice directly into your Google Drive (Invoice 26-27)"
+        >
+          {uploadingToDrive ? (
+            <>
+              <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-emerald-700 border-t-transparent" />
+              <span>Uploading to Drive…</span>
+            </>
+          ) : (
+            <>
+              <svg className="size-3.5 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
+              </svg>
+              <span>Upload to Drive</span>
+            </>
+          )}
+        </button>
+
         {canEdit && (
           <button
             type="button"
@@ -319,6 +477,39 @@ export function InvoiceEditor({
       </div>
 
       {/* ---------------- notices ---------------- */}
+      {driveNotice && (
+        <div
+          className={`inv-noprint flex flex-wrap items-center justify-between gap-3 border-b px-4 py-2 text-xs ${driveNotice.type === "success"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+            : "border-red-200 bg-red-50 text-red-900"
+            }`}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">
+              {driveNotice.type === "success" ? "✓" : "⚠️"}
+            </span>
+            <span>{driveNotice.message}</span>
+            {driveNotice.link && (
+              <a
+                href={driveNotice.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-emerald-800 underline hover:text-emerald-950"
+              >
+                View in Google Drive ↗
+              </a>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setDriveNotice(null)}
+            className="text-xs font-semibold opacity-60 hover:opacity-100"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {(problem || (linked && received !== draft.paymentMade && canEdit)) && (
         <div className="inv-noprint flex flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-2 text-xs">
           {problem ? (
@@ -352,7 +543,7 @@ export function InvoiceEditor({
               invoice={{ ...draft, id: invoice?.id ?? "draft" }}
               settings={settings}
               edit={
-                canEdit
+                canEdit && !isExporting
                   ? {
                     onChange: change,
                     onLineChange: changeLine,
