@@ -140,7 +140,7 @@ export function PaymentsDialog({
                 id="p-amount"
                 type="number"
                 min={0}
-                step={1000}
+                step="any"
                 required
                 className={inputClass}
                 value={draft.amount || ""}

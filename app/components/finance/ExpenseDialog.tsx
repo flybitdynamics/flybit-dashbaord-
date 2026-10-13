@@ -20,6 +20,7 @@ export function ExpenseDialog({
   expense,
   shows,
   team = [],
+  showId,
   onSave,
   onDelete,
   canDelete = true,
@@ -28,12 +29,18 @@ export function ExpenseDialog({
   expense: Expense | null;
   shows: Show[];
   team?: TeamMember[];
+  /** Prefills “Against a show” when logging a new expense from a show. */
+  showId?: string;
   onSave: (draft: Draft, id: string | null) => void;
   onDelete: (expense: Expense) => void;
   canDelete?: boolean;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(() => toDraft(expense));
+  const [draft, setDraft] = useState<Draft>(() => {
+    const base = toDraft(expense);
+    if (!expense && showId) return { ...base, showId };
+    return base;
+  });
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));

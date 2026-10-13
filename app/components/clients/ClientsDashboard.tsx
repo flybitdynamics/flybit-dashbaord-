@@ -14,11 +14,7 @@ import {
   Client,
   ClientType,
   emptyClient,
-  formatCompactMoney,
-  formatMoney,
-  isBooked,
   isOpen,
-  pendingFor,
 } from "../../lib/types";
 import { useAuth } from "../AuthProvider";
 import { ClientTypeBadge } from "../Badges";
@@ -44,27 +40,22 @@ export function ClientsDashboard() {
   const ready = state !== null;
   const clients = useMemo(() => state?.clients ?? [], [state]);
   const shows = useMemo(() => state?.shows ?? [], [state]);
-  const payments = useMemo(() => state?.payments ?? [], [state]);
   const places = useMemo(() => state?.places ?? [], [state]);
 
   const live = (client: Client) => clients.find((c) => c.id === client.id) ?? client;
 
   /** Per-client roll-up, computed once for the table and the tiles. */
   const stats = useMemo(() => {
-    const map = new Map<string, { total: number; open: number; business: number; outstanding: number }>();
+    const map = new Map<string, { total: number; open: number }>();
     for (const show of shows) {
       if (!show.clientId) continue;
-      const row = map.get(show.clientId) ?? { total: 0, open: 0, business: 0, outstanding: 0 };
+      const row = map.get(show.clientId) ?? { total: 0, open: 0 };
       row.total += 1;
       if (isOpen(show)) row.open += 1;
-      if (isBooked(show)) {
-        row.business += show.showAmount || 0;
-        row.outstanding += pendingFor(show, payments);
-      }
       map.set(show.clientId, row);
     }
     return map;
-  }, [shows, payments]);
+  }, [shows]);
 
   /** Shows from before clients were records, grouped by the name they carry. */
   const unlinked = useMemo(() => {
@@ -87,11 +78,8 @@ export function ClientsDashboard() {
       .includes(q);
   });
 
-  const totals = [...stats.values()].reduce(
-    (acc, row) => ({ business: acc.business + row.business, outstanding: acc.outstanding + row.outstanding }),
-    { business: 0, outstanding: 0 },
-  );
   const b2b = clients.filter((c) => c.type === "b2b").length;
+  const openWork = [...stats.values()].reduce((sum, row) => sum + row.open, 0);
 
   function linkUnlinked() {
     for (const group of unlinked) {
@@ -127,12 +115,12 @@ export function ClientsDashboard() {
   }
 
   const tiles = [
-    { label: "Clients", value: String(clients.length), note: `${clients.length - b2b} direct · ${b2b} B2B` },
-    { label: "Booked value", value: formatCompactMoney(totals.business), note: "across all booked shows" },
-    { label: "Outstanding", value: formatCompactMoney(totals.outstanding), note: "still to collect" },
+    { label: "Clients", value: String(clients.length), note: "direct customers and B2B agencies" },
+    { label: "Direct", value: String(clients.length - b2b), note: "book the show themselves" },
+    { label: "B2B", value: String(b2b), note: "agencies and partners" },
     {
       label: "Open work",
-      value: String([...stats.values()].reduce((sum, r) => sum + r.open, 0)),
+      value: String(openWork),
       note: "inquiries, confirmed and completed shows",
     },
   ];
@@ -226,7 +214,7 @@ export function ClientsDashboard() {
               <table className="w-full min-w-[900px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-neutral-100 bg-neutral-50/70">
-                    {["Client", "Contact", "Place", "Shows", "Booked value", "Outstanding", ""].map((h) => (
+                    {["Client", "Contact", "Place", "Shows", ""].map((h) => (
                       <th
                         key={h}
                         className="whitespace-nowrap px-3 py-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-500"
@@ -239,7 +227,7 @@ export function ClientsDashboard() {
                 <tbody>
                   {visible.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center">
+                      <td colSpan={5} className="px-4 py-12 text-center">
                         <p className="font-medium text-neutral-900">
                           {clients.length === 0 ? "No clients yet" : "Nothing matches"}
                         </p>
@@ -279,16 +267,6 @@ export function ClientsDashboard() {
                               <span className="ml-1.5 text-xs text-neutral-500">({row.open} open)</span>
                             )}
                           </td>
-                          <td className="tnum px-3 py-2.5 font-mono text-sm">
-                            {formatMoney(row?.business ?? 0)}
-                          </td>
-                          <td
-                            className={`tnum px-3 py-2.5 font-mono text-sm ${
-                              (row?.outstanding ?? 0) > 0 ? "font-semibold text-neutral-900" : "text-neutral-400"
-                            }`}
-                          >
-                            {formatMoney(row?.outstanding ?? 0)}
-                          </td>
                           <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                             {canEdit && (
                               <button
@@ -316,7 +294,6 @@ export function ClientsDashboard() {
           key={dialog.client.id}
           client={live(dialog.client)}
           shows={shows}
-          payments={payments}
           canEdit={canEdit}
           onEdit={() => setDialog({ kind: "edit", client: live(dialog.client) })}
           onClose={() => setDialog({ kind: "none" })}

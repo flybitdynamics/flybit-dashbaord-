@@ -2,42 +2,33 @@
 
 import {
   PIPELINE,
-  Payment,
   SHOW_STATUSES,
   STAGE_HINTS,
   Show,
   ShowStatus,
-  formatCompactMoney,
-  pendingFor,
 } from "../lib/types";
 import { FilterState } from "./Filters";
 
-/** The funnel at a glance: how many shows sit at each stage and what they
- *  are worth. Clicking a stage filters the table to it. */
+/** The funnel at a glance: how many shows sit at each stage.
+ *  Clicking a stage filters the table to it. Money stays in Finance. */
 export function PipelineStrip({
   shows,
-  payments,
   active,
   onPick,
 }: {
   shows: Show[];
-  payments: Payment[];
   active: FilterState["status"];
   onPick: (status: FilterState["status"]) => void;
 }) {
   const at = (status: ShowStatus) => shows.filter((s) => s.showStatus === status);
-  const value = (list: Show[]) => list.reduce((sum, s) => sum + (s.showAmount || 0), 0);
 
-  const notes: Record<ShowStatus, (list: Show[]) => string> = {
-    inquiry: (list) => (list.length ? `${formatCompactMoney(value(list))} if all convert` : "no open leads"),
-    confirmed: (list) => (list.length ? `${formatCompactMoney(value(list))} booked` : "nothing booked"),
-    completed: (list) => {
-      const due = list.reduce((sum, s) => sum + pendingFor(s, payments), 0);
-      return due > 0 ? `${formatCompactMoney(due)} to collect` : "all collected";
-    },
-    closed: (list) => (list.length ? `${formatCompactMoney(value(list))} earned` : "none yet"),
-    lost: () => "",
-    cancelled: () => "",
+  const emptyNotes: Record<ShowStatus, string> = {
+    inquiry: "no open leads",
+    confirmed: "nothing booked",
+    completed: "none flown yet",
+    closed: "none yet",
+    lost: "",
+    cancelled: "",
   };
 
   const lost = at("lost").length;
@@ -90,7 +81,7 @@ export function PipelineStrip({
               </div>
               <div className="tnum mt-1 text-2xl font-semibold tracking-tight">{list.length}</div>
               <div className={`mt-0.5 text-xs ${selected ? "text-neutral-300" : "text-neutral-500"}`}>
-                {notes[status](list)}
+                {list.length ? STAGE_HINTS[status] : emptyNotes[status]}
               </div>
             </button>
           );

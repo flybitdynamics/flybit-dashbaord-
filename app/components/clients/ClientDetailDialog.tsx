@@ -2,14 +2,10 @@
 
 import {
   Client,
-  Payment,
   Show,
   formatDate,
-  formatMoney,
   isBooked,
-  pendingFor,
   placeLabel,
-  receivedFor,
 } from "../../lib/types";
 import { ClientTypeBadge, ShowStatusBadge } from "../Badges";
 import { Modal } from "../Modal";
@@ -27,14 +23,12 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export function ClientDetailDialog({
   client,
   shows,
-  payments,
   canEdit,
   onEdit,
   onClose,
 }: {
   client: Client;
   shows: Show[];
-  payments: Payment[];
   canEdit: boolean;
   onEdit: () => void;
   onClose: () => void;
@@ -43,9 +37,6 @@ export function ClientDetailDialog({
     .filter((s) => s.clientId === client.id)
     .sort((a, b) => b.showDate.localeCompare(a.showDate));
   const booked = own.filter(isBooked);
-  const business = booked.reduce((sum, s) => sum + (s.showAmount || 0), 0);
-  const received = booked.reduce((sum, s) => sum + receivedFor(s.id, payments), 0);
-  const outstanding = booked.reduce((sum, s) => sum + pendingFor(s, payments), 0);
   const inquiries = own.filter((s) => s.showStatus === "inquiry").length;
 
   return (
@@ -56,9 +47,6 @@ export function ClientDetailDialog({
       width="max-w-3xl"
       footer={
         <>
-          <span className="tnum font-mono text-xs text-neutral-600">
-            {outstanding > 0 ? `${formatMoney(outstanding)} outstanding` : "Nothing outstanding"}
-          </span>
           <div className="ml-auto flex gap-2">
             <button
               type="button"
@@ -105,7 +93,7 @@ export function ClientDetailDialog({
 
         <section>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-            Business
+            Shows
           </h3>
           <div className="mt-1">
             <Row label="Shows booked">
@@ -114,16 +102,8 @@ export function ClientDetailDialog({
             <Row label="Open inquiries">
               <span className="tnum font-mono">{inquiries}</span>
             </Row>
-            <Row label="Booked value">
-              <span className="tnum font-mono">{formatMoney(business)}</span>
-            </Row>
-            <Row label="Received">
-              <span className="tnum font-mono">{formatMoney(received)}</span>
-            </Row>
-            <Row label="Outstanding">
-              <span className={`tnum font-mono ${outstanding > 0 ? "font-semibold" : ""}`}>
-                {formatMoney(outstanding)}
-              </span>
+            <Row label="Total shows">
+              <span className="tnum font-mono">{own.length}</span>
             </Row>
           </div>
         </section>
@@ -139,7 +119,7 @@ export function ClientDetailDialog({
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-neutral-200/70">
-                    {["Show date", "Place", "Stage", "Amount", "Pending"].map((h) => (
+                    {["Show date", "Place", "Stage"].map((h) => (
                       <th
                         key={h}
                         className="px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-neutral-500"
@@ -158,10 +138,6 @@ export function ClientDetailDialog({
                       <td className="px-3 py-2 text-xs text-neutral-600">{placeLabel(show) || "—"}</td>
                       <td className="px-3 py-2">
                         <ShowStatusBadge status={show.showStatus} />
-                      </td>
-                      <td className="tnum px-3 py-2 font-mono text-xs">{formatMoney(show.showAmount)}</td>
-                      <td className="tnum px-3 py-2 font-mono text-xs">
-                        {isBooked(show) ? formatMoney(pendingFor(show, payments)) : "—"}
                       </td>
                     </tr>
                   ))}

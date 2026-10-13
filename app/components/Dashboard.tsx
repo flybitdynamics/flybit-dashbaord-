@@ -21,17 +21,25 @@ import {
   addPayment,
   getServerSnapshot,
   getSnapshot,
+  removeExpense,
   removePayment,
   removeShow,
   setShowStatus,
   subscribe,
   upsertClient,
+  upsertExpense,
   upsertShow,
 } from "../lib/store";
+import {
+  getServerSnapshot as teamServerSnapshot,
+  getSnapshot as teamSnapshot,
+  subscribe as teamSubscribe,
+} from "../lib/team-store";
 import { ImportShowsDialog } from "./ImportShowsDialog";
 import { useAuth } from "./AuthProvider";
 import { DocumentsDialog } from "./DocumentsDialog";
 import { FilterState, Filters, defaultFilters } from "./Filters";
+import { ExpenseDialog } from "./finance/ExpenseDialog";
 import { PaymentsDialog } from "./PaymentsDialog";
 import { PipelineStrip } from "./PipelineStrip";
 import { ShowDetailDialog } from "./ShowDetailDialog";
@@ -44,6 +52,7 @@ type Dialog =
   | { kind: "detail"; show: Show }
   | { kind: "show"; show: Show | null }
   | { kind: "payments"; show: Show }
+  | { kind: "expense"; show: Show; backToDetail: boolean }
   | { kind: "documents"; show: Show }
   | { kind: "import" };
 
@@ -53,18 +62,20 @@ export function Dashboard() {
   const canEditShow = can("shows", "edit");
   const canDeleteShow = can("shows", "delete");
   const canDocuments = can("documents", "view");
+  const canExpense = can("finance", "create");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [dialog, setDialog] = useState<Dialog>({ kind: "none" });
 
   /* The desk is read from Firestore, so it stays null through the server
      render and arrives on the client without an effect. */
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const team = useSyncExternalStore(teamSubscribe, teamSnapshot, teamServerSnapshot);
   const ready = state !== null;
   const shows = useMemo(() => state?.shows ?? [], [state]);
   const payments = useMemo(() => state?.payments ?? [], [state]);
-  const expenses = useMemo(() => state?.expenses ?? [], [state]);
   const clients = useMemo(() => state?.clients ?? [], [state]);
   const pilots = useMemo(() => state?.pilots ?? [], [state]);
+  const members = useMemo(() => team?.members ?? [], [team]);
   const places = useMemo(() => state?.places ?? [], [state]);
   const settings = state?.settings;
   const storeError = state?.error ?? null;
@@ -255,7 +266,6 @@ export function Dashboard() {
         <>
           <PipelineStrip
             shows={shows}
-            payments={payments}
             active={filters.status}
             onPick={(status) => setFilters((prev) => ({ ...prev, status }))}
           />
@@ -274,7 +284,6 @@ export function Dashboard() {
 
             <ShowTable
               shows={visible}
-              payments={payments}
               clients={clients}
               pilots={pilots}
               total={shows.length}
@@ -285,6 +294,8 @@ export function Dashboard() {
               onEdit={(show) => setDialog({ kind: "show", show })}
               onDelete={handleDelete}
               onPayments={(show) => setDialog({ kind: "payments", show })}
+              canExpense={canExpense}
+              onExpense={(show) => setDialog({ kind: "expense", show, backToDetail: false })}
               onDocuments={(show) => setDialog({ kind: "documents", show })}
             />
           </section>
@@ -309,14 +320,15 @@ export function Dashboard() {
           clients={clients}
           pilots={pilots}
           payments={payments}
-          expenses={expenses}
           canEdit={canEditShow}
           canDocuments={canDocuments}
           canInvoice={can("invoices", "create")}
           canQuote={can("quotations", "create")}
+          canExpense={canExpense}
           onStage={(status) => setShowStatus(dialog.show.id, status)}
           onEdit={() => setDialog({ kind: "show", show: live(dialog.show) })}
           onPayments={() => setDialog({ kind: "payments", show: dialog.show })}
+          onExpense={() => setDialog({ kind: "expense", show: dialog.show, backToDetail: true })}
           onDocuments={() => setDialog({ kind: "documents", show: dialog.show })}
           onClose={() => setDialog({ kind: "none" })}
         />
@@ -350,6 +362,27 @@ export function Dashboard() {
           onAdd={addPayment}
           onRemove={removePayment}
           onClose={() => setDialog({ kind: "none" })}
+        />
+      )}
+
+      {dialog.kind === "expense" && (
+        <ExpenseDialog
+          key={dialog.show.id}
+          expense={null}
+          shows={shows}
+          team={members}
+          showId={dialog.show.id}
+          canDelete={false}
+          onSave={(draft, id) => {
+            upsertExpense(draft, id);
+            setDialog(
+              dialog.backToDetail ? { kind: "detail", show: dialog.show } : { kind: "none" },
+            );
+          }}
+          onDelete={(expense) => removeExpense(expense.id)}
+          onClose={() =>
+            setDialog(dialog.backToDetail ? { kind: "detail", show: dialog.show } : { kind: "none" })
+          }
         />
       )}
 

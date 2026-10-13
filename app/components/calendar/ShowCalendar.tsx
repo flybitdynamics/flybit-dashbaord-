@@ -7,11 +7,9 @@ import {
   SHOW_STATUSES,
   Show,
   Zone,
-  formatCompactMoney,
   formatNumber,
   formatTime,
   isBooked,
-  pendingFor,
   todayISO,
 } from "../../lib/types";
 import { SiteHeader } from "../SiteHeader";
@@ -63,7 +61,6 @@ export function ShowCalendar({ onOpenShow }: { onOpenShow: (show: Show) => void 
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const ready = state !== null;
   const shows = useMemo(() => state?.shows ?? [], [state]);
-  const payments = useMemo(() => state?.payments ?? [], [state]);
 
   const grid = useMemo(() => buildGrid(month), [month]);
   const today = todayISO();
@@ -86,10 +83,8 @@ export function ShowCalendar({ onOpenShow }: { onOpenShow: (show: Show) => void 
     (s) => s.showStatus !== "lost" && s.showStatus !== "cancelled" && s.showDate.startsWith(month),
   );
   const drones = monthShows.reduce((sum, s) => sum + (s.droneCount || 0), 0);
-  const booked = monthShows.filter(isBooked);
-  const inquiries = monthShows.length - booked.length;
-  const value = booked.reduce((sum, s) => sum + (s.showAmount || 0), 0);
-  const due = booked.reduce((sum, s) => sum + pendingFor(s, payments), 0);
+  const booked = monthShows.filter(isBooked).length;
+  const inquiries = monthShows.length - booked;
 
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
@@ -136,10 +131,10 @@ export function ShowCalendar({ onOpenShow }: { onOpenShow: (show: Show) => void 
         <>
           <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-neutral-100 shadow-sm shadow-neutral-900/5 lg:grid-cols-4">
             {[
-              { label: "Shows", value: String(monthShows.length), note: inquiries ? `${inquiries} still an inquiry` : formatMonth(month) },
+              { label: "Shows", value: String(monthShows.length), note: formatMonth(month) },
+              { label: "Booked", value: String(booked), note: "confirmed, completed or closed" },
+              { label: "Inquiries", value: String(inquiries), note: "not booked yet" },
               { label: "Drones", value: formatNumber(drones), note: "across the month" },
-              { label: "Value", value: formatCompactMoney(value), note: "booked this month" },
-              { label: "To collect", value: formatCompactMoney(due), note: "still outstanding" },
             ].map((tile) => (
               <div key={tile.label} className="bg-white px-4 py-3.5">
                 <div className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">

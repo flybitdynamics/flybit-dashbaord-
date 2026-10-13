@@ -1,3 +1,4 @@
+import { Invoice, totalsFor } from "./invoices";
 import { Payment, Show, isBooked, todayISO } from "./types";
 import { LeaveRequest, TeamMember, payableThisMonth } from "./team";
 
@@ -112,6 +113,62 @@ export function expensesByCategory(
     .map((category) => ({ category, amount: totals.get(category) ?? 0 }))
     .filter((row) => row.amount > 0)
     .sort((a, b) => b.amount - a.amount);
+}
+
+/* ---------------- invoices and GST ---------------- */
+
+/** Tax and billing for one month, taken from invoices dated in that month.
+ *  Cancelled invoices are left out. Drafts stay in, so an unsent bill is
+ *  still visible before it goes to the client. */
+export interface GstMonth {
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  tax: number;
+  invoiced: number;
+  paidOnInvoice: number;
+  outstanding: number;
+  count: number;
+}
+
+export function gstForMonth(invoices: Invoice[], month: string): GstMonth {
+  const empty: GstMonth = {
+    taxable: 0,
+    cgst: 0,
+    sgst: 0,
+    igst: 0,
+    tax: 0,
+    invoiced: 0,
+    paidOnInvoice: 0,
+    outstanding: 0,
+    count: 0,
+  };
+
+  return invoices
+    .filter((invoice) => invoice.status !== "cancelled" && inMonth(invoice.invoiceDate, month))
+    .reduce((acc, invoice) => {
+      const totals = totalsFor(invoice);
+      let cgst = 0;
+      let sgst = 0;
+      let igst = 0;
+      for (const group of totals.groups) {
+        if (group.label.startsWith("CGST")) cgst += group.amount;
+        else if (group.label.startsWith("SGST")) sgst += group.amount;
+        else if (group.label.startsWith("IGST")) igst += group.amount;
+      }
+      return {
+        taxable: acc.taxable + totals.subTotal,
+        cgst: acc.cgst + cgst,
+        sgst: acc.sgst + sgst,
+        igst: acc.igst + igst,
+        tax: acc.tax + totals.taxTotal,
+        invoiced: acc.invoiced + totals.total,
+        paidOnInvoice: acc.paidOnInvoice + Math.min(invoice.paymentMade || 0, totals.total),
+        outstanding: acc.outstanding + Math.max(0, totals.balance),
+        count: acc.count + 1,
+      };
+    }, empty);
 }
 
 /* ---------------- the month as a whole ---------------- */

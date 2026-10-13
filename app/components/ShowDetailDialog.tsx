@@ -2,11 +2,8 @@
 
 import Link from "next/link";
 
-import { EXPENSE_CATEGORIES, Expense, showMargin } from "../lib/finance";
 import {
   Client,
-  PAYMENT_MODES,
-  PAYMENT_STATE_LABELS,
   PIPELINE,
   Payment,
   Pilot,
@@ -19,11 +16,9 @@ import {
   contactLabel,
   countdownLabel,
   formatDate,
-  formatMoney,
   formatNumber,
   formatTime,
   isBooked,
-  paymentStateOf,
   pendingFor,
   placeLabel,
 } from "../lib/types";
@@ -128,14 +123,15 @@ export function ShowDetailDialog({
   clients,
   pilots,
   payments,
-  expenses,
   canEdit,
   canDocuments = true,
   canInvoice = false,
   canQuote = false,
+  canExpense = false,
   onStage,
   onEdit,
   onPayments,
+  onExpense,
   onDocuments,
   onClose,
 }: {
@@ -143,25 +139,22 @@ export function ShowDetailDialog({
   clients: Client[];
   pilots: Pilot[];
   payments: Payment[];
-  expenses: Expense[];
   canEdit: boolean;
   canDocuments?: boolean;
   /** Shown on booked shows, for roles that may raise one. */
   canInvoice?: boolean;
   /** A quotation can go out before anything is booked. */
   canQuote?: boolean;
+  /** Same expense form as Finance, linked to this show. */
+  canExpense?: boolean;
   onStage: (status: ShowStatus) => void;
   /** Leave out where this screen has no edit form (the calendar). */
   onEdit?: () => void;
   onPayments: () => void;
+  onExpense?: () => void;
   onDocuments: () => void;
   onClose: () => void;
 }) {
-  const own = payments
-    .filter((p) => p.showId === show.id)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const linked = expenses.filter((e) => e.showId === show.id);
-  const margin = showMargin(show, payments, expenses);
   const pending = pendingFor(show, payments);
   const client = clients.find((c) => c.id === show.clientId);
   const crew = pilots.filter((p) => show.pilotIds.includes(p.id));
@@ -186,7 +179,7 @@ export function ShowDetailDialog({
       }
     }
     if (to === "closed" && pending > 0) {
-      if (!window.confirm(`${formatMoney(pending)} is still pending on this show. Close it anyway?`)) return;
+      if (!window.confirm("This show still has an outstanding balance. Close it anyway?")) return;
     }
     if (to === "lost" && !window.confirm("Mark this inquiry as lost? You can reopen it later.")) return;
     if (to === "cancelled" && !window.confirm("Cancel this confirmed show? You can reinstate it later.")) return;
@@ -201,15 +194,6 @@ export function ShowDetailDialog({
       width="max-w-3xl"
       footer={
         <>
-          <span className="tnum font-mono text-xs text-neutral-600">
-            {!booked
-              ? show.showAmount > 0
-                ? `Quoted ${formatMoney(show.showAmount)}`
-                : "Not quoted yet"
-              : pending > 0
-                ? `${formatMoney(pending)} still to collect`
-                : "Fully paid"}
-          </span>
           <div className="ml-auto flex gap-2">
             {canDocuments && (
               <button
@@ -243,6 +227,15 @@ export function ShowDetailDialog({
             >
               Payments
             </button>
+            {canExpense && onExpense && (
+              <button
+                type="button"
+                onClick={onExpense}
+                className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
+              >
+                Expense
+              </button>
+            )}
             {canEdit && onEdit && (
               <button
                 type="button"
@@ -325,67 +318,6 @@ export function ShowDetailDialog({
                   <CertificateBadge state={certificateState(pilot)} />
                 </span>
               </Row>
-            ))
-          )}
-        </Group>
-
-        <Group title="Money">
-          <Row label={booked ? "Show amount" : "Quoted"}>
-            <span className="tnum font-mono">{formatMoney(show.showAmount)}</span>
-          </Row>
-          {booked && (
-            <>
-              <Row label="Received">
-                <span className="tnum font-mono">{formatMoney(margin.received)}</span>
-              </Row>
-              <Row label="Pending">
-                <span className={`tnum font-mono ${pending > 0 ? "font-semibold" : ""}`}>
-                  {formatMoney(pending)}
-                </span>
-              </Row>
-            </>
-          )}
-          <Row label="Commission">
-            <span className="tnum font-mono">{formatMoney(show.commission)}</span>
-          </Row>
-          <Row label="Linked expenses">
-            <span className="tnum font-mono">{formatMoney(margin.expenses)}</span>
-          </Row>
-          <Row label="Margin">
-            <span className="tnum font-mono font-semibold">{formatMoney(margin.margin)}</span>
-          </Row>
-          {booked && (
-            <Row label="Payment status">{PAYMENT_STATE_LABELS[paymentStateOf(show, payments)]}</Row>
-          )}
-        </Group>
-
-        <Group title={`Payments (${own.length})`}>
-          {own.length === 0 ? (
-            <p className="py-2 text-sm text-neutral-500">Nothing received yet.</p>
-          ) : (
-            own.map((payment) => (
-              <div key={payment.id} className="row-line flex items-baseline justify-between gap-3 py-2">
-                <span className="text-xs text-neutral-500">
-                  {formatDate(payment.date)} · {PAYMENT_MODES[payment.mode]}
-                </span>
-                <span className="tnum font-mono text-sm">{formatMoney(payment.amount)}</span>
-              </div>
-            ))
-          )}
-        </Group>
-
-        <Group title={`Expenses against this show (${linked.length})`}>
-          {linked.length === 0 ? (
-            <p className="py-2 text-sm text-neutral-500">None recorded.</p>
-          ) : (
-            linked.map((expense) => (
-              <div key={expense.id} className="row-line flex items-baseline justify-between gap-3 py-2">
-                <span className="text-xs text-neutral-500">
-                  {EXPENSE_CATEGORIES[expense.category]}
-                  {expense.description ? ` · ${expense.description}` : ""}
-                </span>
-                <span className="tnum font-mono text-sm">{formatMoney(expense.amount)}</span>
-              </div>
             ))
           )}
         </Group>

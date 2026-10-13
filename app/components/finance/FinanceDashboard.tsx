@@ -5,10 +5,12 @@ import {
   EXPENSE_CATEGORIES,
   Expense,
   expensesByCategory,
+  gstForMonth,
   salariesInMonth,
   showMargin,
   summariseMonth,
 } from "../../lib/finance";
+import { INVOICE_STATUSES, Invoice, totalsFor } from "../../lib/invoices";
 import {
   getServerSnapshot,
   getSnapshot,
@@ -22,13 +24,22 @@ import {
   subscribe as teamSubscribe,
 } from "../../lib/team-store";
 import { formatMonth, payableThisMonth, recentMonths, currentMonth } from "../../lib/team";
-import { formatCompactMoney, formatDate, formatMoney, isBooked } from "../../lib/types";
+import { PAYMENT_MODES, daysAway, formatCompactMoney, formatDate, formatMoney, isBooked } from "../../lib/types";
 import { useAuth } from "../AuthProvider";
 import { SiteHeader } from "../SiteHeader";
 import { ExpenseDialog } from "./ExpenseDialog";
 
 /** A plain horizontal bar. Everything shares one scale so the lengths can
  *  be compared by eye. */
+function invoiceLabel(invoice: Invoice, balance: number): string {
+  if (invoice.status === "draft" || invoice.status === "paid" || invoice.status === "cancelled") {
+    return INVOICE_STATUSES[invoice.status];
+  }
+  const days = daysAway(invoice.dueDate);
+  if (invoice.status === "overdue" || (days !== null && days < 0 && balance > 0)) return "Overdue";
+  return INVOICE_STATUSES[invoice.status];
+}
+
 function Bar({ value, max, tone }: { value: number; max: number; tone: "in" | "out" }) {
   const pct = max > 0 ? Math.max(value > 0 ? 2 : 0, Math.round((value / max) * 100)) : 0;
   return (
@@ -58,6 +69,7 @@ export function FinanceDashboard() {
   const shows = useMemo(() => desk?.shows ?? [], [desk]);
   const payments = useMemo(() => desk?.payments ?? [], [desk]);
   const expenses = useMemo(() => desk?.expenses ?? [], [desk]);
+  const invoices = useMemo(() => desk?.invoices ?? [], [desk]);
   const members = useMemo(() => team?.members ?? [], [team]);
   const requests = useMemo(() => team?.requests ?? [], [team]);
 
@@ -77,6 +89,7 @@ export function FinanceDashboard() {
   const trendMax = Math.max(1, ...trend.flatMap((t) => [t.received, t.outgoings]));
 
   const salary = salariesInMonth(members, requests, month);
+  const gst = useMemo(() => gstForMonth(invoices, month), [invoices, month]);
   const byCategory = expensesByCategory(expenses, month);
   const monthExpenses = expenses
     .filter((e) => e.date.startsWith(month))
@@ -86,6 +99,13 @@ export function FinanceDashboard() {
     (s) => isBooked(s) && s.showDate.startsWith(month),
   );
   const margins = monthShows.map((s) => showMargin(s, payments, expenses));
+  const monthInvoices = invoices
+    .filter((invoice) => invoice.status !== "cancelled" && invoice.invoiceDate.startsWith(month))
+    .map((invoice) => ({ invoice, totals: totalsFor(invoice) }))
+    .sort((a, b) => b.invoice.invoiceDate.localeCompare(a.invoice.invoiceDate));
+  const monthPayments = payments
+    .filter((payment) => payment.date.startsWith(month))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   const outRows = [
     { label: "Salaries", value: summary.salaries, note: salary.deduction > 0 ? `${formatCompactMoney(salary.gross)} gross less ${formatCompactMoney(salary.deduction)} unpaid leave` : "no deductions" },
@@ -101,13 +121,17 @@ export function FinanceDashboard() {
   }
 
   const tiles = [
-    { label: "Received", value: formatCompactMoney(summary.received), note: "collected this month" },
-    { label: "Booked", value: formatCompactMoney(summary.booked), note: "shows scheduled this month" },
-    { label: "Money out", value: formatCompactMoney(summary.outgoings), note: "salary + commission + expenses" },
+    { label: "Show income", value: formatCompactMoney(summary.booked), note: "booked drone shows this month" },
+    { label: "Collected", value: formatCompactMoney(summary.received), note: `${monthPayments.length} payment${monthPayments.length === 1 ? "" : "s"} logged on shows` },
+    { label: "Invoiced", value: formatCompactMoney(gst.invoiced), note: `${gst.count} invoice${gst.count === 1 ? "" : "s"} · incl. GST` },
+    { label: "GST", value: formatCompactMoney(gst.tax), note: "CGST, SGST and IGST on those invoices" },
+    { label: "Salary", value: formatCompactMoney(summary.salaries), note: salary.deduction > 0 ? `${formatCompactMoney(salary.deduction)} unpaid leave` : "payable this month" },
+    { label: "Expenses", value: formatCompactMoney(summary.expenses), note: `${monthExpenses.length} recorded` },
+    { label: "Commission", value: formatCompactMoney(summary.commission), note: `${monthShows.length} show${monthShows.length === 1 ? "" : "s"}` },
     {
-      label: "Net",
+      label: "Net cash",
       value: formatCompactMoney(Math.abs(summary.net)),
-      note: summary.net < 0 ? "more went out than came in" : "received less money out",
+      note: summary.net < 0 ? "more went out than was collected" : "collected less salary, commission and expenses",
       negative: summary.net < 0,
     },
   ];
@@ -116,7 +140,7 @@ export function FinanceDashboard() {
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
       <SiteHeader
         title="Finance"
-        subtitle="What came in, what went out, and what each show actually earned"
+        subtitle="Invoices, GST, show payments, salary and expenses — one month at a time"
         actions={
           <>
             <select
@@ -170,6 +194,156 @@ export function FinanceDashboard() {
                 <div className="mt-0.5 text-xs text-neutral-500">{tile.note}</div>
               </div>
             ))}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
+                GST and invoices — {formatMonth(month)}
+              </h2>
+              <span className="text-xs text-neutral-500">
+                {formatMoney(gst.outstanding)} still to collect on invoices
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-neutral-100 shadow-sm shadow-neutral-900/5 sm:grid-cols-3 lg:grid-cols-5">
+              {[
+                { label: "Taxable value", value: formatMoney(gst.taxable) },
+                { label: "CGST", value: formatMoney(gst.cgst) },
+                { label: "SGST", value: formatMoney(gst.sgst) },
+                { label: "IGST", value: formatMoney(gst.igst) },
+                { label: "Marked paid", value: formatMoney(gst.paidOnInvoice) },
+              ].map((row) => (
+                <div key={row.label} className="bg-white px-4 py-3">
+                  <div className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+                    {row.label}
+                  </div>
+                  <div className="tnum mt-1 font-mono text-sm font-semibold text-neutral-900">{row.value}</div>
+                </div>
+              ))}
+            </div>
+            <div className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[860px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-neutral-100 bg-neutral-50/70">
+                      {["Invoice", "Client", "Taxable", "GST", "Total", "Paid", "Balance", "Status"].map((h) => (
+                        <th
+                          key={h}
+                          className="whitespace-nowrap px-3 py-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-500"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthInvoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-10 text-center text-sm text-neutral-500">
+                          No invoices dated in {formatMonth(month)}.
+                        </td>
+                      </tr>
+                    ) : (
+                      monthInvoices.map(({ invoice, totals }) => {
+                        const show = shows.find((s) => s.id === invoice.showId);
+                        return (
+                          <tr key={invoice.id} className="row-line hover:bg-neutral-50">
+                            <td className="px-3 py-2.5">
+                              <div className="font-semibold text-neutral-900">{invoice.number || "Draft"}</div>
+                              <div className="text-xs text-neutral-500">{formatDate(invoice.invoiceDate)}</div>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <div className="text-sm text-neutral-800">{invoice.billTo.name || "—"}</div>
+                              <div className="text-xs text-neutral-500">
+                                {show ? show.location : invoice.subject || "—"}
+                              </div>
+                            </td>
+                            <td className="tnum px-3 py-2.5 font-mono text-sm">{formatMoney(totals.subTotal)}</td>
+                            <td className="tnum px-3 py-2.5 font-mono text-sm text-neutral-600">
+                              {formatMoney(totals.taxTotal)}
+                            </td>
+                            <td className="tnum px-3 py-2.5 font-mono text-sm font-medium">
+                              {formatMoney(totals.total)}
+                            </td>
+                            <td className="tnum px-3 py-2.5 font-mono text-sm text-neutral-600">
+                              {formatMoney(Math.min(invoice.paymentMade || 0, totals.total))}
+                            </td>
+                            <td className="tnum px-3 py-2.5 font-mono text-sm font-semibold text-neutral-900">
+                              {formatMoney(Math.max(0, totals.balance))}
+                            </td>
+                            <td className="px-3 py-2.5 text-xs text-neutral-600">
+                              {invoiceLabel(invoice, totals.balance)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
+                Payments logged on shows — {formatMonth(month)}
+              </h2>
+              <span className="text-xs text-neutral-500">{formatMoney(summary.received)} collected</span>
+            </div>
+            <div className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-neutral-100 bg-neutral-50/70">
+                      {["Date", "Show", "Mode", "Notes", "Amount"].map((h) => (
+                        <th
+                          key={h}
+                          className="whitespace-nowrap px-3 py-2.5 text-[11px] font-medium uppercase tracking-wider text-neutral-500"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthPayments.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-10 text-center text-sm text-neutral-500">
+                          No show payments dated in {formatMonth(month)}.
+                        </td>
+                      </tr>
+                    ) : (
+                      monthPayments.map((payment) => {
+                        const show = shows.find((s) => s.id === payment.showId);
+                        return (
+                          <tr key={payment.id} className="row-line hover:bg-neutral-50">
+                            <td className="tnum whitespace-nowrap px-3 py-2.5 font-mono text-sm text-neutral-600">
+                              {formatDate(payment.date)}
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <div className="font-medium text-neutral-900">
+                                {show?.client || show?.location || "Unlinked show"}
+                              </div>
+                              <div className="text-xs text-neutral-500">
+                                {show ? `${show.location} · ${formatDate(show.showDate)}` : "—"}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 text-sm text-neutral-600">
+                              {PAYMENT_MODES[payment.mode]}
+                            </td>
+                            <td className="px-3 py-2.5 text-sm text-neutral-500">{payment.notes || "—"}</td>
+                            <td className="tnum px-3 py-2.5 font-mono text-sm font-semibold text-neutral-900">
+                              {formatMoney(payment.amount)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </section>
 
           <div className="grid gap-5 lg:grid-cols-2">
@@ -469,7 +643,7 @@ export function FinanceDashboard() {
       )}
 
       <footer className="pt-3 text-xs text-neutral-500">
-        Received is cash logged against payments · Salary follows unpaid leave · Amounts in INR
+        Show income is the booked fee. Collected is cash logged on shows. Invoices supply taxable value and GST. Net cash is collected minus salary, commission and expenses — GST is tax, not profit. Amounts in INR.
       </footer>
 
       {dialog.open && (

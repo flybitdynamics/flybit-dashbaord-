@@ -87,19 +87,6 @@ export function Filters({
       </div>
 
       <select
-        aria-label="Filter by payment"
-        className={selectClass}
-        value={filters.payment}
-        onChange={(e) => set("payment", e.target.value as FilterState["payment"])}
-      >
-        <option value="all">Any payment</option>
-        <option value="paid">Paid in full</option>
-        <option value="partial">Part paid</option>
-        <option value="pending">Nothing received</option>
-        <option value="due">Amount pending</option>
-      </select>
-
-      <select
         aria-label="Filter by show status"
         className={selectClass}
         value={filters.status}

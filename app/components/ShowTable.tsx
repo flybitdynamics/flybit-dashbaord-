@@ -2,27 +2,16 @@
 
 import {
   Client,
-  PAYMENT_STATE_LABELS,
-  Payment,
   Pilot,
   Show,
   contactLabel,
-  daysAway,
-  formatCompactMoney,
   formatDate,
-  formatMoney,
   formatNumber,
   formatTime,
-  isBooked,
-  isOverdue,
-  paymentStateOf,
-  pendingFor,
   placeLabel,
-  receivedFor,
 } from "../lib/types";
 import {
   ClientTypeBadge,
-  PaymentMeter,
   PermissionLabel,
   ShowStatusBadge,
   ZoneBadge,
@@ -38,14 +27,12 @@ const headers = [
   "Drones",
   "Booking date",
   "Show date",
-  "Payment",
   "Permission",
   "",
 ];
 
 export function ShowTable({
   shows,
-  payments,
   clients,
   pilots,
   total,
@@ -56,10 +43,11 @@ export function ShowTable({
   onEdit,
   onDelete,
   onPayments,
+  onExpense,
+  canExpense = false,
   onDocuments,
 }: {
   shows: Show[];
-  payments: Payment[];
   clients: Client[];
   pilots: Pilot[];
   total: number;
@@ -70,13 +58,10 @@ export function ShowTable({
   onEdit: (show: Show) => void;
   onDelete: (show: Show) => void;
   onPayments: (show: Show) => void;
+  onExpense?: (show: Show) => void;
+  canExpense?: boolean;
   onDocuments: (show: Show) => void;
 }) {
-  // Inquiries have a quote, not a debt, so they stay out of the total.
-  const pendingTotal = shows
-    .filter(isBooked)
-    .reduce((sum, s) => sum + pendingFor(s, payments), 0);
-
   return (
     <div className="overflow-hidden card">
       <div className="overflow-x-auto">
@@ -111,9 +96,6 @@ export function ShowTable({
               </tr>
             ) : (
               shows.map((show, index) => {
-                const received = receivedFor(show.id, payments);
-                const state = paymentStateOf(show, payments);
-                const overdue = isOverdue(show, payments);
                 const client = clients.find((c) => c.id === show.clientId);
                 const dimmed =
                   show.showStatus === "closed" ||
@@ -181,34 +163,6 @@ export function ShowTable({
                     </td>
 
                     <td className="px-3 py-2.5">
-                      {isBooked(show) ? (
-                        <>
-                          <PaymentMeter amount={show.showAmount} received={received} state={state} />
-                          <div
-                            className={`mt-0.5 text-[11px] ${overdue ? "font-semibold text-red-600" : "text-neutral-500"}`}
-                          >
-                            {overdue
-                              ? `Overdue by ${Math.abs(daysAway(show.showDate) ?? 0)} days`
-                              : PAYMENT_STATE_LABELS[state]}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-xs text-neutral-500">
-                          {show.showAmount > 0 ? (
-                            <>
-                              Quoted{" "}
-                              <span className="tnum font-mono text-neutral-800">
-                                {formatCompactMoney(show.showAmount)}
-                              </span>
-                            </>
-                          ) : (
-                            "Not quoted"
-                          )}
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="px-3 py-2.5">
                       <PermissionLabel status={show.permission} />
                     </td>
 
@@ -233,6 +187,15 @@ export function ShowTable({
                         >
                           Payments
                         </button>
+                        {canExpense && onExpense && (
+                          <button
+                            type="button"
+                            onClick={() => onExpense(show)}
+                            className="rounded-md px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-100"
+                          >
+                            Expense
+                          </button>
+                        )}
                         {canEdit && (
                           <button
                             type="button"
@@ -260,13 +223,6 @@ export function ShowTable({
           </tbody>
         </table>
       </div>
-
-      {pendingTotal > 0 && (
-        <div className="tnum border-t border-neutral-100 bg-neutral-50 px-3 py-2 text-right font-mono text-xs text-neutral-600">
-          Amount pending on booked shows here:{" "}
-          <span className="font-semibold text-neutral-900">{formatMoney(pendingTotal)}</span>
-        </div>
-      )}
     </div>
   );
 }
