@@ -140,7 +140,7 @@ export async function getAuthenticatedDrive() {
   return google.drive({ version: "v3", auth: oauth2Client });
 }
 
-/** Uploads a PDF to the configured Google Drive folder */
+/** Uploads a PDF to the configured Google Drive folder, deleting any existing file with the same name to prevent duplicates */
 export async function uploadInvoiceToDrive({
   fileName,
   pdfBuffer,
@@ -157,6 +157,36 @@ export async function uploadInvoiceToDrive({
     throw new Error("GOOGLE_DRIVE_FOLDER_ID is not configured in .env.");
   }
 
+  // 1. Search for any existing file(s) with the same name in the target folder to prevent duplicates
+  let hadExisting = false;
+  try {
+    const escapedName = fileName.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const existingRes = await drive.files.list({
+      q: `'${targetFolder}' in parents and name = '${escapedName}' and trashed = false`,
+      fields: "files(id, name)",
+      spaces: "drive",
+      pageSize: 50,
+    });
+
+    const existingFiles = existingRes.data.files || [];
+    if (existingFiles.length > 0) {
+      hadExisting = true;
+      for (const f of existingFiles) {
+        if (f.id) {
+          try {
+            await drive.files.delete({ fileId: f.id });
+            console.log(`[Drive] Overwriting: deleted existing duplicate ${f.name} (${f.id})`);
+          } catch (delErr) {
+            console.warn(`[Drive] Could not delete existing file ${f.id}:`, delErr);
+          }
+        }
+      }
+    }
+  } catch (searchErr) {
+    console.warn("[Drive] Could not search for existing duplicate files:", searchErr);
+  }
+
+  // 2. Upload the new PDF
   const { Readable } = await import("node:stream");
   const stream = new Readable();
   stream.push(pdfBuffer);
@@ -175,5 +205,8 @@ export async function uploadInvoiceToDrive({
     fields: "id, name, webViewLink, webContentLink",
   });
 
-  return response.data;
+  return {
+    ...response.data,
+    overwritten: hadExisting,
+  };
 }

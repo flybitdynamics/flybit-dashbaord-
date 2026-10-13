@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
       fileId: result.id,
       fileName: result.name,
       webViewLink: result.webViewLink,
+      overwritten: result.overwritten,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to upload invoice to Google Drive.";

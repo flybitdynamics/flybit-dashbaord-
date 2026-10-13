@@ -21,7 +21,6 @@ import { jsPDF } from "jspdf";
 /** A4 at 96dpi — what the sheet measures on screen. */
 const SHEET_W = 794;
 const SHEET_H = 1123;
-
 function fitToWindow(): number {
   if (typeof window === "undefined") return 1;
   return Math.min(1, Math.max(0.4, (window.innerWidth - 80) / SHEET_W));
@@ -114,55 +113,34 @@ export function InvoiceEditor({
     link?: string;
   } | null>(null);
 
-  /** The print dialog names the PDF from the invoice number. */
-  function printPdf() {
-    const previous = document.title;
-    const safeNum = draft.number ? draft.number.replace(/\//g, "-") : "Invoice";
-    document.title = safeNum;
-    const restore = () => {
-      document.title = previous;
-    };
-    window.addEventListener("afterprint", restore, { once: true });
-    window.print();
-  }
-
-  /** Direct 1-click upload to Google Drive without any local file picking */
-  async function uploadDirectlyToDrive() {
+  /** Merged Print / PDF: validates, saves, captures clean PDF, uploads to Drive, and opens print dialog */
+  async function handlePrintPdf() {
     if (uploadingToDrive) return;
+
+    // 1. Validate required fields
+    if (!draft.number.trim()) {
+      setProblem("Give the invoice a number before saving or printing.");
+      return;
+    }
+    if (!draft.billTo.name.trim()) {
+      setProblem("Say who the invoice is for — click the name under Bill To.");
+      return;
+    }
+    setProblem(null);
+
+    // 2. Auto-save changes to database
+    if (canEdit && (dirty || !invoice)) {
+      onSave(draft, invoice?.id ?? null);
+      setDirty(false);
+    }
+
     setUploadingToDrive(true);
     setDriveNotice(null);
 
+    const safeNum = draft.number ? draft.number.replace(/\//g, "-") : "Invoice";
+    const fileName = `${safeNum}.pdf`;
+
     try {
-      // 1. Check Drive credentials and connection
-      const statusRes = await fetch("/api/drive/status");
-      const statusData = await statusRes.json();
-      if (!statusData.configured) {
-        setDriveNotice({
-          type: "error",
-          message:
-            "Google Drive OAuth credentials are not set. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env.",
-        });
-        setUploadingToDrive(false);
-        return;
-      }
-      if (!statusData.connected) {
-        if (
-          window.confirm(
-            "Google Drive is not connected yet. Would you like to connect it now?"
-          )
-        ) {
-          window.location.href = "/api/drive/auth";
-        }
-        setUploadingToDrive(false);
-        return;
-      }
-
-      // 2. Auto-save changes if valid
-      if (dirty && canEdit && draft.number.trim() && draft.billTo.name.trim()) {
-        onSave(draft, invoice?.id ?? null);
-        setDirty(false);
-      }
-
       // 3. Temporarily switch sheet to pure read/print mode (removes all inputs, blue boxes, placeholders, delete buttons)
       const prevZoom = zoom;
       setIsExporting(true);
@@ -217,9 +195,8 @@ export function InvoiceEditor({
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight, undefined, "FAST");
 
       const blob = pdf.output("blob");
-      const safeNum = draft.number ? draft.number.replace(/\//g, "-") : "Invoice";
-      const fileName = `${safeNum}.pdf`;
 
+      // 4. Upload to Google Drive (with deduplication / overwrite)
       const formData = new FormData();
       formData.append("file", blob, fileName);
       formData.append("fileName", fileName);
@@ -231,23 +208,37 @@ export function InvoiceEditor({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to upload to Google Drive");
+        setDriveNotice({
+          type: "error",
+          message: data.error || "Failed to upload to Google Drive",
+        });
+      } else {
+        const actionVerb = data.overwritten ? "Overwrote & updated" : "Saved";
+        setDriveNotice({
+          type: "success",
+          message: `${actionVerb} ${fileName} in Google Drive (Invoice 26-27)!`,
+          link: data.webViewLink,
+        });
       }
-
-      setDriveNotice({
-        type: "success",
-        message: `Saved ${fileName} directly to Google Drive (Invoice 26-27)!`,
-        link: data.webViewLink,
-      });
     } catch (err: unknown) {
       setIsExporting(false);
-      const msg = err instanceof Error ? err.message : "Upload failed";
+      const msg = err instanceof Error ? err.message : "Upload to Google Drive failed";
       setDriveNotice({
         type: "error",
         message: msg,
       });
     } finally {
+      setIsExporting(false);
       setUploadingToDrive(false);
+
+      // 5. Open browser print dialog
+      const previous = document.title;
+      document.title = safeNum;
+      const restore = () => {
+        document.title = previous;
+      };
+      window.addEventListener("afterprint", restore, { once: true });
+      window.print();
     }
   }
 
@@ -439,29 +430,20 @@ export function InvoiceEditor({
           </button>
         )}
 
-        <button type="button" onClick={printPdf} className={bar}>
-          Print / PDF
-        </button>
-
         <button
           type="button"
-          onClick={uploadDirectlyToDrive}
+          onClick={handlePrintPdf}
           disabled={uploadingToDrive}
-          className={`${bar} flex items-center gap-1.5 font-medium text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900 border border-emerald-300 bg-emerald-50/70`}
-          title="Upload this invoice directly into your Google Drive (Invoice 26-27)"
+          className={`${bar} flex items-center gap-1.5`}
+          title="Save invoice, upload to Google Drive, and open print/PDF dialog"
         >
           {uploadingToDrive ? (
             <>
-              <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-emerald-700 border-t-transparent" />
-              <span>Uploading to Drive…</span>
+              <span className="inline-block size-3.5 animate-spin rounded-full border-2 border-neutral-700 border-t-transparent" />
+              <span>Saving & Uploading…</span>
             </>
           ) : (
-            <>
-              <svg className="size-3.5 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
-              </svg>
-              <span>Upload to Drive</span>
-            </>
+            <span>Print / PDF</span>
           )}
         </button>
 
