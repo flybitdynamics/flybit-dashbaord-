@@ -5,10 +5,12 @@ import {
   PAYMENT_MODES,
   Payment,
   PaymentMode,
+  SHOW_STATUSES,
   Show,
   emptyPayment,
   formatDate,
   formatMoney,
+  isBooked,
   pendingFor,
   receivedFor,
 } from "../lib/types";
@@ -56,7 +58,9 @@ export function PaymentsDialog({
     <Modal
       title={`Payments — ${show.client || show.location}`}
       subtitle={
-        show.showAmount > 0
+        !isBooked(show)
+          ? `${SHOW_STATUSES[show.showStatus]} · Unbooked lead (payments apply to confirmed & completed shows)`
+          : show.showAmount > 0
           ? `Show amount ${formatMoney(show.showAmount)} · ${formatMoney(received)} received · ${formatMoney(pending)} pending`
           : "Show amount not quoted yet"
       }
@@ -126,7 +130,11 @@ export function PaymentsDialog({
           </table>
         </div>
 
-        {canEdit && show.showAmount <= 0 ? (
+        {!isBooked(show) ? (
+          <div className="mt-5 rounded-xl bg-neutral-100 p-4 text-xs font-medium text-neutral-700 border border-neutral-200">
+            This show is currently marked as <strong>{SHOW_STATUSES[show.showStatus]}</strong>. Inquiries and lost leads owe ₹0. Confirm the booking to enable payment tracking and log payments.
+          </div>
+        ) : canEdit && show.showAmount <= 0 ? (
           <div className="mt-5 rounded-xl bg-amber-50 p-4 text-xs font-medium text-amber-900 border border-amber-200">
             Show amount has not been quoted yet. Set a show amount on the show before logging payments.
           </div>

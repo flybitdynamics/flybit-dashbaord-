@@ -1,14 +1,15 @@
 "use client";
 
-import { SHOW_STATUSES, ShowStatus, Zone } from "../lib/types";
+import { Pilot, SHOW_STATUSES, ShowStatus, Zone } from "../lib/types";
 import { ZoneDot } from "./Badges";
 
 export interface FilterState {
   query: string;
   zone: Zone | "all";
-  payment: "all" | "paid" | "partial" | "pending" | "due";
+  payment: "all" | "paid" | "partial" | "pending" | "due" | "overdue";
   /** "open" = inquiry, confirmed and completed — everything still in play. */
   status: "open" | "all" | ShowStatus;
+  pilotId: "all" | string;
 }
 
 export const defaultFilters: FilterState = {
@@ -16,6 +17,7 @@ export const defaultFilters: FilterState = {
   zone: "all",
   payment: "all",
   status: "all",
+  pilotId: "all",
 };
 
 const zoneOptions: { value: Zone | "all"; label: string }[] = [
@@ -30,9 +32,11 @@ const selectClass =
 
 export function Filters({
   filters,
+  pilots = [],
   onChange,
 }: {
   filters: FilterState;
+  pilots?: Pilot[];
   onChange: (next: FilterState) => void;
 }) {
   const set = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
@@ -100,6 +104,35 @@ export function Filters({
           </option>
         ))}
       </select>
+
+      <select
+        aria-label="Filter by payment status"
+        className={selectClass}
+        value={filters.payment}
+        onChange={(e) => set("payment", e.target.value as FilterState["payment"])}
+      >
+        <option value="all">All payments</option>
+        <option value="due">Pending balance (Due)</option>
+        <option value="overdue">Overdue pending</option>
+        <option value="partial">Partially paid</option>
+        <option value="paid">Paid in full</option>
+      </select>
+
+      {pilots.length > 0 && (
+        <select
+          aria-label="Filter by pilot or team member"
+          className={selectClass}
+          value={filters.pilotId}
+          onChange={(e) => set("pilotId", e.target.value)}
+        >
+          <option value="all">All pilots & team</option>
+          {pilots.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }

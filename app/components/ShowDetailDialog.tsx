@@ -16,11 +16,13 @@ import {
   contactLabel,
   countdownLabel,
   formatDate,
+  formatMoney,
   formatNumber,
   formatTime,
   isBooked,
   pendingFor,
   placeLabel,
+  receivedFor,
 } from "../lib/types";
 import { Modal } from "./Modal";
 import {
@@ -156,6 +158,7 @@ export function ShowDetailDialog({
   onClose: () => void;
 }) {
   const pending = pendingFor(show, payments);
+  const received = receivedFor(show.id, payments);
   const client = clients.find((c) => c.id === show.clientId);
   const crew = pilots.filter((p) => show.pilotIds.includes(p.id));
   const booked = isBooked(show);
@@ -319,6 +322,64 @@ export function ShowDetailDialog({
                 </span>
               </Row>
             ))
+          )}
+        </Group>
+
+        <Group title="Money & payments">
+          <Row label={booked ? "Show amount" : "Quoted amount"}>
+            <span className="font-mono font-semibold text-neutral-900">
+              {show.showAmount > 0
+                ? formatMoney(show.showAmount)
+                : booked
+                ? "₹0 (Free / Internal)"
+                : "Not quoted"}
+            </span>
+          </Row>
+          {booked ? (
+            <>
+              {show.showAmount > 0 && (
+                <>
+                  <Row label="Payment received">
+                    <span className="font-mono font-semibold text-emerald-700">
+                      {formatMoney(received)}
+                    </span>
+                  </Row>
+                  <Row label="Balance pending">
+                    <span
+                      className={`font-mono font-bold ${
+                        pending > 0 ? "text-amber-700" : "text-emerald-700"
+                      }`}
+                    >
+                      {pending > 0 ? `${formatMoney(pending)} pending` : "✓ Paid in full"}
+                    </span>
+                  </Row>
+                </>
+              )}
+              {show.commission > 0 && (
+                <Row label="Commission">
+                  <span className="font-mono text-neutral-600">
+                    {formatMoney(show.commission)}
+                  </span>
+                </Row>
+              )}
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={onPayments}
+                  className="rounded-md bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-200"
+                >
+                  View & log payments →
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="mt-1.5 rounded-lg bg-neutral-50 p-2.5 text-[11px] text-neutral-500 border border-neutral-200/60">
+              {show.showStatus === "lost"
+                ? "Lost lead · Not counted in budget or pending balance."
+                : show.showStatus === "cancelled"
+                ? "Cancelled booking · Not counted in budget or pending balance."
+                : "Inquiry lead · Not counted in budget or pending balance. Payments apply once confirmed."}
+            </div>
           )}
         </Group>
 

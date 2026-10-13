@@ -501,6 +501,7 @@ export function receivedFor(showId: string, payments: Payment[]): number {
 }
 
 export function pendingFor(show: Show, payments: Payment[]): number {
+  if (!isBooked(show)) return 0;
   return Math.max(0, (show.showAmount || 0) - receivedFor(show.id, payments));
 }
 

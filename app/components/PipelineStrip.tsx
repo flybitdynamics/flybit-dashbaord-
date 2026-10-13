@@ -2,21 +2,26 @@
 
 import {
   PIPELINE,
+  Payment,
   SHOW_STATUSES,
   STAGE_HINTS,
   Show,
   ShowStatus,
+  formatCompactMoney,
+  pendingFor,
 } from "../lib/types";
 import { FilterState } from "./Filters";
 
-/** The funnel at a glance: how many shows sit at each stage.
- *  Clicking a stage filters the table to it. Money stays in Finance. */
+/** The funnel at a glance: how many shows sit at each stage and their financial value.
+ *  Clicking a stage filters the table to it. */
 export function PipelineStrip({
   shows,
+  payments = [],
   active,
   onPick,
 }: {
   shows: Show[];
+  payments?: Payment[];
   active: FilterState["status"];
   onPick: (status: FilterState["status"]) => void;
 }) {
@@ -60,9 +65,12 @@ export function PipelineStrip({
       </div>
 
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-neutral-100 shadow-sm shadow-neutral-900/5 lg:grid-cols-4">
-        {PIPELINE.map((status, i) => {
+        {PIPELINE.map((status) => {
           const list = at(status);
           const selected = active === status;
+          const stageTotal = list.reduce((sum, s) => sum + (s.showAmount || 0), 0);
+          const stagePending = list.reduce((sum, s) => sum + pendingFor(s, payments), 0);
+
           return (
             <button
               key={status}
@@ -70,18 +78,43 @@ export function PipelineStrip({
               aria-pressed={selected}
               title={STAGE_HINTS[status]}
               onClick={() => onPick(selected ? "all" : status)}
-              className={`group relative px-4 py-3.5 text-left transition-colors ${selected ? "bg-neutral-900 text-white" : "bg-white hover:bg-neutral-50"
-                }`}
+              className={`group relative px-4 py-3.5 text-left transition-colors ${
+                selected ? "bg-neutral-900 text-white" : "bg-white hover:bg-neutral-50"
+              }`}
             >
-              <div
-                className={`text-[11px] font-medium uppercase tracking-wider ${selected ? "text-neutral-300" : "text-neutral-500"
+              <div className="flex items-baseline justify-between gap-2">
+                <span
+                  className={`text-[11px] font-medium uppercase tracking-wider ${
+                    selected ? "text-neutral-300" : "text-neutral-500"
                   }`}
-              >
-                {SHOW_STATUSES[status]}
+                >
+                  {SHOW_STATUSES[status]}
+                </span>
+                {stageTotal > 0 && (
+                  <span
+                    className={`tnum font-mono text-[11px] font-semibold ${
+                      selected ? "text-neutral-300" : "text-neutral-700"
+                    }`}
+                  >
+                    {formatCompactMoney(stageTotal)} {status === "inquiry" ? "quoted" : ""}
+                  </span>
+                )}
               </div>
               <div className="tnum mt-1 text-2xl font-semibold tracking-tight">{list.length}</div>
               <div className={`mt-0.5 text-xs ${selected ? "text-neutral-300" : "text-neutral-500"}`}>
-                {list.length ? STAGE_HINTS[status] : emptyNotes[status]}
+                {status !== "inquiry" && stagePending > 0 ? (
+                  <span className={selected ? "font-mono font-medium text-amber-300" : "font-mono font-medium text-amber-700"}>
+                    ⏳ {formatCompactMoney(stagePending)} pending
+                  </span>
+                ) : status === "inquiry" ? (
+                  <span className={selected ? "text-neutral-300" : "text-neutral-500"}>
+                    {list.length ? "Leads · ₹0 pending (not in budget)" : emptyNotes[status]}
+                  </span>
+                ) : list.length ? (
+                  STAGE_HINTS[status]
+                ) : (
+                  emptyNotes[status]
+                )}
               </div>
             </button>
           );

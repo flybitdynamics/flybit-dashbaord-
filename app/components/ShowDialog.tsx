@@ -188,14 +188,15 @@ export function ShowDialog({
   const amountVal = draft.showAmount === "" ? null : Number(draft.showAmount);
   const commVal = draft.commission === "" ? 0 : Number(draft.commission);
 
+  const isLead = draft.showStatus === "inquiry" || draft.showStatus === "lost" || draft.showStatus === "cancelled";
   const netNote =
     amountVal === null || isNaN(amountVal)
-      ? "Show amount not set"
+      ? isLead ? "Quote not set" : "Show amount not set"
       : amountVal === 0
         ? "Show amount: ₹0"
         : commVal > 0
-          ? `${formatMoney(amountVal)} less ${formatMoney(commVal)} commission = ${formatMoney(amountVal - commVal)}`
-          : formatMoney(amountVal);
+          ? `${formatMoney(amountVal)} less ${formatMoney(commVal)} commission = ${formatMoney(amountVal - commVal)}${isLead ? " (Lead · not in budget)" : ""}`
+          : `${formatMoney(amountVal)}${isLead ? " (Lead · not in budget)" : ""}`;
 
   function getMissingConfirmationFields(d: Draft): string[] {
     const missing: string[] = [];
@@ -667,7 +668,11 @@ export function ShowDialog({
 
         <Section title="Money & permission" />
 
-        <Field label="Show amount (₹)" htmlFor="f-amount" hint="Entering an amount moves an inquiry to Confirmed.">
+        <Field
+          label="Show amount (₹)"
+          htmlFor="f-amount"
+          hint="Agreed amount for confirmed shows, or quoted price for leads (leads are not counted in pending budget)."
+        >
           <input
             id="f-amount"
             type="number"
@@ -681,10 +686,6 @@ export function ShowDialog({
               setDraft((prev) => ({
                 ...prev,
                 showAmount: amt,
-                showStatus:
-                  typeof amt === "number" && amt > 0 && prev.showStatus === "inquiry"
-                    ? "confirmed"
-                    : prev.showStatus,
               }));
               if (amt !== "" && amt >= 0) setProblem(null);
             }}

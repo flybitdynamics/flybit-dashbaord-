@@ -2,13 +2,20 @@
 
 import {
   Client,
+  Payment,
   Pilot,
   Show,
   contactLabel,
   formatDate,
+  formatMoney,
   formatNumber,
   formatTime,
+  isBooked,
+  isOverdue,
+  paymentStateOf,
+  pendingFor,
   placeLabel,
+  receivedFor,
 } from "../lib/types";
 import {
   ClientTypeBadge,
@@ -26,7 +33,8 @@ const headers = [
   "Zone",
   "Drones",
   "Booking date",
-  "Show date",
+  "Show date & crew",
+  "Payment & amount",
   "Permission",
   "",
 ];
@@ -35,6 +43,7 @@ export function ShowTable({
   shows,
   clients,
   pilots,
+  payments,
   total,
   canEdit,
   canDelete,
@@ -50,6 +59,7 @@ export function ShowTable({
   shows: Show[];
   clients: Client[];
   pilots: Pilot[];
+  payments: Payment[];
   total: number;
   canEdit: boolean;
   canDelete: boolean;
@@ -104,6 +114,10 @@ export function ShowTable({
                 const place = placeLabel(show);
                 const contact = contactLabel(show);
                 const crew = pilots.filter((p) => show.pilotIds.includes(p.id));
+                const received = receivedFor(show.id, payments);
+                const pending = pendingFor(show, payments);
+                const state = paymentStateOf(show, payments);
+                const overdue = isOverdue(show, payments);
 
                 return (
                   <tr
@@ -155,11 +169,91 @@ export function ShowTable({
                       <div className="tnum font-mono text-xs text-neutral-500">
                         {formatTime(show.showStartTime)}–{formatTime(show.showEndTime)}
                       </div>
-                      {crew.length > 0 && (
-                        <div className="max-w-40 truncate text-[11px] text-neutral-500">
-                          {crew.map((p) => p.name).join(", ")}
+                      {(crew.length > 0 || show.person) && (
+                        <div className="mt-1 flex items-center gap-1 text-[11px] font-medium text-neutral-700">
+                          <span className="text-neutral-400">👤</span>
+                          <span className="max-w-40 truncate">
+                            {crew.length > 0 ? crew.map((p) => p.name).join(", ") : show.person}
+                          </span>
                         </div>
                       )}
+                    </td>
+
+                    <td
+                      className="px-3 py-2.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isBooked(show)) {
+                          onPayments(show);
+                        } else {
+                          onOpen(show);
+                        }
+                      }}
+                    >
+                      <div
+                        className="group flex flex-col gap-1 cursor-pointer"
+                        title={isBooked(show) ? "Click to view & log payments" : "Click to view lead details"}
+                      >
+                        {isBooked(show) ? (
+                          show.showAmount > 0 ? (
+                            <>
+                              <div className="tnum font-mono text-sm font-semibold text-neutral-900 group-hover:text-neutral-600">
+                                {formatMoney(show.showAmount)}
+                              </div>
+                              {state === "paid" ? (
+                                <span className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                                  ✓ Paid in full
+                                </span>
+                              ) : state === "partial" ? (
+                                <div className="tnum flex flex-wrap items-center gap-1 font-mono text-[11px]">
+                                  <span className="font-medium text-emerald-700">{formatMoney(received)} rec</span>
+                                  <span className="text-neutral-300">·</span>
+                                  <span className="rounded bg-amber-50 px-1 font-semibold text-amber-800">
+                                    {formatMoney(pending)} pending
+                                  </span>
+                                </div>
+                              ) : (
+                                <span
+                                  className={`inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[11px] font-semibold ${
+                                    overdue
+                                      ? "border-rose-200 bg-rose-50 text-rose-800"
+                                      : "border-amber-200 bg-amber-50 text-amber-800"
+                                  }`}
+                                >
+                                  {overdue ? "⚠️ " : "⏳ "}
+                                  {formatMoney(pending)} pending
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="font-mono text-xs text-neutral-500">₹0 (Free / Internal)</span>
+                          )
+                        ) : (
+                          // Inquiries, lost, and cancelled leads owe nothing and are not in pending budget
+                          show.showAmount > 0 ? (
+                            <>
+                              <div className="tnum font-mono text-sm font-medium text-neutral-400">
+                                {formatMoney(show.showAmount)}
+                              </div>
+                              <span className="inline-flex w-fit items-center rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
+                                {show.showStatus === "lost"
+                                  ? "Lost lead (₹0 due)"
+                                  : show.showStatus === "cancelled"
+                                  ? "Cancelled (₹0 due)"
+                                  : "Quoted lead (₹0 due)"}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-neutral-400">
+                              {show.showStatus === "lost"
+                                ? "Lost"
+                                : show.showStatus === "cancelled"
+                                ? "Cancelled"
+                                : "Unquoted inquiry"}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </td>
 
                     <td className="px-3 py-2.5">

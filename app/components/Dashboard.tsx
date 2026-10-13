@@ -11,8 +11,11 @@ import {
   Show,
   ZONES,
   formatDate,
+  formatMoney,
+  formatCompactMoney,
   isBooked,
   isOpen,
+  isOverdue,
   paymentStateOf,
   pendingFor,
   receivedFor,
@@ -107,13 +110,29 @@ export function Dashboard() {
         return false;
       }
 
-      if (filters.payment === "due") {
-        if (!isBooked(show) || pendingFor(show, payments) <= 0) return false;
-      } else if (
-        filters.payment !== "all" &&
-        paymentStateOf(show, payments) !== filters.payment
-      ) {
-        return false;
+      if (filters.payment !== "all") {
+        if (!isBooked(show)) return false;
+        if (filters.payment === "due") {
+          if (pendingFor(show, payments) <= 0) return false;
+        } else if (filters.payment === "overdue") {
+          if (!isOverdue(show, payments)) return false;
+        } else if (paymentStateOf(show, payments) !== filters.payment) {
+          return false;
+        }
+      }
+
+      if (filters.pilotId && filters.pilotId !== "all") {
+        if (filters.pilotId.startsWith("person-")) {
+          const personName = filters.pilotId.replace("person-", "").trim().toLowerCase();
+          if ((show.person || "").trim().toLowerCase() !== personName) return false;
+        } else {
+          if (!show.pilotIds.includes(filters.pilotId)) {
+            const pilotName = (pilotNames.get(filters.pilotId) || "").trim().toLowerCase();
+            if (!pilotName || (show.person || "").trim().toLowerCase() !== pilotName) {
+              return false;
+            }
+          }
+        }
       }
 
       if (query) {
@@ -138,6 +157,118 @@ export function Dashboard() {
       return true;
     });
   }, [shows, payments, filters, pilotNames]);
+
+  // Financial totals across all booked/flown shows
+  const bookedShows = useMemo(() => shows.filter(isBooked), [shows]);
+  const totalBookedValue = useMemo(
+    () => bookedShows.reduce((sum, s) => sum + (s.showAmount || 0), 0),
+    [bookedShows],
+  );
+  const totalCollected = useMemo(
+    () => bookedShows.reduce((sum, s) => sum + receivedFor(s.id, payments), 0),
+    [bookedShows, payments],
+  );
+  const totalPending = useMemo(
+    () => bookedShows.reduce((sum, s) => sum + pendingFor(s, payments), 0),
+    [bookedShows, payments],
+  );
+  const overdueShows = useMemo(
+    () => bookedShows.filter((s) => isOverdue(s, payments)),
+    [bookedShows, payments],
+  );
+  const totalOverdue = useMemo(
+    () => overdueShows.reduce((sum, s) => sum + pendingFor(s, payments), 0),
+    [overdueShows, payments],
+  );
+  const showsWithPending = useMemo(
+    () => bookedShows.filter((s) => pendingFor(s, payments) > 0),
+    [bookedShows, payments],
+  );
+
+  // Financial totals for currently visible (filtered) shows
+  const visibleBooked = useMemo(() => visible.filter(isBooked), [visible]);
+  const visibleBookedValue = useMemo(
+    () => visibleBooked.reduce((sum, s) => sum + (s.showAmount || 0), 0),
+    [visibleBooked],
+  );
+  const visibleCollected = useMemo(
+    () => visibleBooked.reduce((sum, s) => sum + receivedFor(s.id, payments), 0),
+    [visibleBooked, payments],
+  );
+  const visiblePending = useMemo(
+    () => visibleBooked.reduce((sum, s) => sum + pendingFor(s, payments), 0),
+    [visibleBooked, payments],
+  );
+
+  // Summary grouped individually by person / pilot
+  const personSummary = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        showsCount: number;
+        bookedTotal: number;
+        collectedTotal: number;
+        pendingTotal: number;
+      }
+    >();
+
+    pilots.forEach((pilot) => {
+      map.set(pilot.id, {
+        id: pilot.id,
+        name: pilot.name,
+        showsCount: 0,
+        bookedTotal: 0,
+        collectedTotal: 0,
+        pendingTotal: 0,
+      });
+    });
+
+    shows.forEach((show) => {
+      const booked = isBooked(show);
+      const amt = show.showAmount || 0;
+      const rec = receivedFor(show.id, payments);
+      const pend = pendingFor(show, payments);
+
+      if (show.pilotIds && show.pilotIds.length > 0) {
+        show.pilotIds.forEach((pid) => {
+          const entry = map.get(pid);
+          if (entry) {
+            if (booked) {
+              entry.showsCount++;
+              entry.bookedTotal += amt;
+              entry.collectedTotal += rec;
+              entry.pendingTotal += pend;
+            }
+          }
+        });
+      } else if (show.person && show.person.trim()) {
+        const key = `person-${show.person.trim().toLowerCase()}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            id: key,
+            name: show.person.trim(),
+            showsCount: 0,
+            bookedTotal: 0,
+            collectedTotal: 0,
+            pendingTotal: 0,
+          });
+        }
+        const entry = map.get(key)!;
+        if (booked) {
+          entry.showsCount++;
+          entry.bookedTotal += amt;
+          entry.collectedTotal += rec;
+          entry.pendingTotal += pend;
+        }
+      }
+    });
+
+    return Array.from(map.values())
+      .filter((p) => p.showsCount > 0)
+      .sort((a, b) => b.bookedTotal - a.bookedTotal || b.showsCount - a.showsCount);
+  }, [shows, payments, pilots]);
 
   function exportCsv() {
     const headers = [
@@ -266,26 +397,175 @@ export function Dashboard() {
         <>
           <PipelineStrip
             shows={shows}
+            payments={payments}
             active={filters.status}
             onPick={(status) => setFilters((prev) => ({ ...prev, status }))}
           />
 
+          {/* Financial KPI Summary for Shows */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-2xl border border-neutral-200/80 bg-white p-3.5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+                Confirmed Budget
+              </div>
+              <div className="tnum mt-1 font-mono text-xl sm:text-2xl font-bold text-neutral-900">
+                {formatMoney(totalBookedValue)}
+              </div>
+              <div className="mt-0.5 text-xs text-neutral-500">
+                {bookedShows.length} confirmed & completed show{bookedShows.length === 1 ? "" : "s"}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-3.5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">
+                Collected
+              </div>
+              <div className="tnum mt-1 font-mono text-xl sm:text-2xl font-bold text-emerald-900">
+                {formatMoney(totalCollected)}
+              </div>
+              <div className="mt-0.5 text-xs text-emerald-700">
+                {totalBookedValue > 0
+                  ? `${Math.round((totalCollected / totalBookedValue) * 100)}% collected`
+                  : "No payments yet"}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 p-3.5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+                Total Pending
+              </div>
+              <div className="tnum mt-1 font-mono text-xl sm:text-2xl font-bold text-amber-900">
+                {formatMoney(totalPending)}
+              </div>
+              <div className="mt-0.5 text-xs text-amber-700">
+                {showsWithPending.length} show{showsWithPending.length === 1 ? "" : "s"} with balance due
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-rose-200/80 bg-rose-50/50 p-3.5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-rose-800">
+                Overdue Pending
+              </div>
+              <div className="tnum mt-1 font-mono text-xl sm:text-2xl font-bold text-rose-900">
+                {formatMoney(totalOverdue)}
+              </div>
+              <div className="mt-0.5 text-xs text-rose-700">
+                {overdueShows.length} show{overdueShows.length === 1 ? "" : "s"} flown past date
+              </div>
+            </div>
+          </div>
+
           <section className="flex flex-col gap-3">
-            <div className="flex items-baseline justify-between gap-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
                 Shows
               </h2>
-              <span className="text-xs text-neutral-500">
-                {visible.length} of {shows.length} show{shows.length === 1 ? "" : "s"}
-              </span>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 font-mono">
+                <span>
+                  {visible.length} of {shows.length} show{shows.length === 1 ? "" : "s"}
+                </span>
+                {visibleBookedValue > 0 && (
+                  <>
+                    <span className="text-neutral-300">·</span>
+                    <span className="text-neutral-700 font-medium">
+                      Budget: {formatMoney(visibleBookedValue)}
+                    </span>
+                    <span className="text-neutral-300">·</span>
+                    <span className="text-emerald-700 font-medium">
+                      ✓ {formatMoney(visibleCollected)} collected
+                    </span>
+                    {visiblePending > 0 && (
+                      <>
+                        <span className="text-neutral-300">·</span>
+                        <span className="text-amber-800 font-semibold">
+                          ⏳ {formatMoney(visiblePending)} pending
+                        </span>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
-            <Filters filters={filters} onChange={setFilters} />
+            {/* Individual Person / Pilot Breakdown Pills */}
+            {personSummary.length > 0 && (
+              <div className="flex flex-col gap-1.5 rounded-2xl border border-neutral-200/70 bg-neutral-50/60 p-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold uppercase tracking-wider text-neutral-600 text-[11px]">
+                    Amounts by Person / Pilot
+                  </span>
+                  {filters.pilotId !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((prev) => ({ ...prev, pilotId: "all" }))}
+                      className="text-xs font-medium text-neutral-500 hover:text-neutral-900 underline"
+                    >
+                      Clear person filter
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+                  <button
+                    type="button"
+                    onClick={() => setFilters((prev) => ({ ...prev, pilotId: "all" }))}
+                    className={`rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors ${filters.pilotId === "all"
+                        ? "bg-neutral-900 text-white shadow-sm"
+                        : "bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-100"
+                      }`}
+                  >
+                    All Team ({bookedShows.length} booked)
+                  </button>
+                  {personSummary.map((person) => {
+                    const isSelected = filters.pilotId === person.id;
+                    return (
+                      <button
+                        key={person.id}
+                        type="button"
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            pilotId: isSelected ? "all" : person.id,
+                          }))
+                        }
+                        className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs whitespace-nowrap transition-colors ${isSelected
+                            ? "bg-neutral-900 text-white shadow-sm ring-2 ring-neutral-900"
+                            : "bg-white border border-neutral-200 text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50"
+                          }`}
+                      >
+                        <span className="font-semibold">{person.name}</span>
+                        <span className={`text-[11px] ${isSelected ? "text-neutral-300" : "text-neutral-400"}`}>
+                          ({person.showsCount} booked)
+                        </span>
+                        <span
+                          className={`font-mono text-[11px] font-medium ${isSelected ? "text-emerald-300" : "text-emerald-700"
+                            }`}
+                        >
+                          ✓ {formatCompactMoney(person.collectedTotal)}
+                        </span>
+                        {person.pendingTotal > 0 && (
+                          <span
+                            className={`font-mono text-[11px] font-semibold rounded px-1 ${isSelected
+                                ? "bg-amber-400/20 text-amber-200"
+                                : "bg-amber-50 text-amber-800 border border-amber-200/60"
+                              }`}
+                          >
+                            ⏳ {formatCompactMoney(person.pendingTotal)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <Filters filters={filters} pilots={pilots} onChange={setFilters} />
 
             <ShowTable
               shows={visible}
               clients={clients}
               pilots={pilots}
+              payments={payments}
               total={shows.length}
               canEdit={canEditShow}
               canDelete={canDeleteShow}
