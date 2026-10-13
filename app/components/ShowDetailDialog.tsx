@@ -176,8 +176,8 @@ export function ShowDetailDialog({
       if (!show.coordinates?.trim()) missing.push("Coordinates");
       if (!show.showDate?.trim()) missing.push("Show Date");
       if (!show.showStartTime?.trim() || !show.showEndTime?.trim()) missing.push("Start/End Time");
-      if (!show.droneCount || show.droneCount <= 0) missing.push("Drone Count");
-      if (!show.showAmount || show.showAmount <= 0) missing.push("Show Amount");
+      if (show.droneCount === undefined || show.droneCount === null || show.droneCount < 0) missing.push("Drone Count");
+      if (show.showAmount === undefined || show.showAmount === null || show.showAmount < 0) missing.push("Show Amount");
 
       if (missing.length > 0) {
         alert(`To confirm this booking, please complete the following compulsory details: ${missing.join(", ")}.`);

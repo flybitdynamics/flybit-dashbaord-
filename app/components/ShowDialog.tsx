@@ -24,7 +24,11 @@ import {
 } from "../lib/types";
 import { Field, Modal, inputClass } from "./Modal";
 
-type Draft = Omit<Show, "id">;
+type Draft = Omit<Show, "id" | "droneCount" | "showAmount" | "commission"> & {
+  droneCount: number | "";
+  showAmount: number | "";
+  commission: number | "";
+};
 
 /** Sentinel in the client picker for "make a new client record". */
 const NEW_CLIENT = "__new";
@@ -47,11 +51,21 @@ function toDraft(show: Show | null, pilots: Pilot[]): Draft {
     const usual = pilots.find(
       (p) => p.status === "active" && p.name.trim().toLowerCase() === DEFAULT_PERSON.toLowerCase(),
     );
-    return usual ? { ...draft, pilotIds: [usual.id] } : draft;
+    return {
+      ...(usual ? { ...draft, pilotIds: [usual.id] } : draft),
+      droneCount: "",
+      showAmount: "",
+      commission: "",
+    };
   }
   const { id: _id, ...rest } = show;
   void _id;
-  return rest;
+  return {
+    ...rest,
+    droneCount: rest.droneCount ?? "",
+    showAmount: rest.showAmount ?? "",
+    commission: rest.commission ?? "",
+  };
 }
 
 const unique = (values: string[]) =>
@@ -88,7 +102,7 @@ export function ShowDialog({
   pilots: Pilot[];
   places: Place[];
   canCreateClient?: boolean;
-  onSave: (draft: Draft, id: string | null) => void;
+  onSave: (draft: Omit<Show, "id">, id: string | null) => void;
   /** Makes the client record and returns its id. */
   onCreateClient: (draft: Omit<Client, "id">) => string;
   onDelete: (show: Show) => void;
@@ -171,12 +185,17 @@ export function ShowDialog({
     (p) => p.status === "active" || draft.pilotIds.includes(p.id),
   );
 
+  const amountVal = draft.showAmount === "" ? null : Number(draft.showAmount);
+  const commVal = draft.commission === "" ? 0 : Number(draft.commission);
+
   const netNote =
-    draft.showAmount === 0
+    amountVal === null || isNaN(amountVal)
       ? "Show amount not set"
-      : draft.commission > 0
-        ? `${formatMoney(draft.showAmount)} less ${formatMoney(draft.commission)} commission = ${formatMoney(draft.showAmount - draft.commission)}`
-        : formatMoney(draft.showAmount);
+      : amountVal === 0
+        ? "Show amount: ₹0"
+        : commVal > 0
+          ? `${formatMoney(amountVal)} less ${formatMoney(commVal)} commission = ${formatMoney(amountVal - commVal)}`
+          : formatMoney(amountVal);
 
   function getMissingConfirmationFields(d: Draft): string[] {
     const missing: string[] = [];
@@ -186,8 +205,12 @@ export function ShowDialog({
     if (!d.coordinates.trim()) missing.push("Coordinates");
     if (!d.showDate.trim()) missing.push("Show Date");
     if (!d.showStartTime.trim() || !d.showEndTime.trim()) missing.push("Start/End Time");
-    if (!d.droneCount || d.droneCount <= 0) missing.push("Drone Count (> 0)");
-    if (!d.showAmount || d.showAmount <= 0) missing.push("Show Amount (> 0)");
+    if (d.droneCount === "" || d.droneCount === undefined || d.droneCount === null || Number(d.droneCount) < 0) {
+      missing.push("Drone Count");
+    }
+    if (d.showAmount === "" || d.showAmount === undefined || d.showAmount === null || Number(d.showAmount) < 0) {
+      missing.push("Show Amount");
+    }
     return missing;
   }
 
@@ -230,6 +253,9 @@ export function ShowDialog({
     onSave(
       {
         ...draft,
+        droneCount: typeof draft.droneCount === "number" ? draft.droneCount : Number(draft.droneCount) || 0,
+        showAmount: typeof draft.showAmount === "number" ? draft.showAmount : Number(draft.showAmount) || 0,
+        commission: typeof draft.commission === "number" ? draft.commission : Number(draft.commission) || 0,
         clientId,
         client: clientName.trim(),
         contactName: draft.contactName.trim(),
@@ -375,9 +401,8 @@ export function ShowDialog({
                     type="button"
                     aria-pressed={newType === type}
                     onClick={() => setNewType(type)}
-                    className={`px-3.5 py-2 text-sm ${
-                      newType === type ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-50"
-                    }`}
+                    className={`px-3.5 py-2 text-sm ${newType === type ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-50"
+                      }`}
                   >
                     {CLIENT_TYPES[type]}
                   </button>
@@ -503,9 +528,8 @@ export function ShowDialog({
               return (
                 <label
                   key={zone}
-                  className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-sm ${
-                    active ? zoneActive[zone] : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
-                  }`}
+                  className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-sm ${active ? zoneActive[zone] : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                    }`}
                 >
                   <input
                     type="radio"
@@ -573,11 +597,14 @@ export function ShowDialog({
             id="f-drones"
             type="number"
             min={0}
-            step={10}
+            step={1}
             className={inputClass}
-            value={draft.droneCount || ""}
-            onChange={(e) => set("droneCount", Number(e.target.value) || 0)}
-            placeholder="150"
+            value={draft.droneCount}
+            onChange={(e) => {
+              const val = e.target.value;
+              set("droneCount", val === "" ? "" : Math.max(0, parseInt(val, 10) || 0));
+            }}
+            placeholder="0"
           />
         </Field>
 
@@ -614,11 +641,10 @@ export function ShowDialog({
                             ? "No DGCA certificate on file"
                             : pilot.qualification
                     }
-                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm ring-1 transition-colors ${
-                      on
-                        ? "bg-neutral-900 text-white ring-neutral-900"
-                        : "bg-white text-neutral-700 ring-neutral-200 hover:bg-neutral-50"
-                    }`}
+                    className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm ring-1 transition-colors ${on
+                      ? "bg-neutral-900 text-white ring-neutral-900"
+                      : "bg-white text-neutral-700 ring-neutral-200 hover:bg-neutral-50"
+                      }`}
                   >
                     {on && (
                       <span className="tnum text-[10px] font-semibold opacity-70">
@@ -628,9 +654,8 @@ export function ShowDialog({
                     {pilot.name}
                     {warn && (
                       <span
-                        className={`size-1.5 rounded-full ${
-                          cert === "expired" ? "bg-red-500" : cert === "expiring" ? "bg-amber-500" : "bg-neutral-400"
-                        }`}
+                        className={`size-1.5 rounded-full ${cert === "expired" ? "bg-red-500" : cert === "expiring" ? "bg-amber-500" : "bg-neutral-400"
+                          }`}
                       />
                     )}
                   </button>
@@ -647,24 +672,23 @@ export function ShowDialog({
             id="f-amount"
             type="number"
             min={0}
-            step={1000}
+            step="any"
             className={inputClass}
-            value={draft.showAmount || ""}
+            value={draft.showAmount}
             onChange={(e) => {
-              const amt = Number(e.target.value) || 0;
+              const val = e.target.value;
+              const amt = val === "" ? "" : Math.max(0, parseFloat(val) || 0);
               setDraft((prev) => ({
                 ...prev,
                 showAmount: amt,
                 showStatus:
-                  amt > 0 && prev.showStatus === "inquiry"
+                  typeof amt === "number" && amt > 0 && prev.showStatus === "inquiry"
                     ? "confirmed"
-                    : amt === 0 && prev.showStatus === "confirmed"
-                    ? "inquiry"
                     : prev.showStatus,
               }));
-              if (amt > 0) setProblem(null);
+              if (amt !== "" && amt >= 0) setProblem(null);
             }}
-            placeholder="151000"
+            placeholder="0"
           />
         </Field>
 
@@ -673,10 +697,13 @@ export function ShowDialog({
             id="f-commission"
             type="number"
             min={0}
-            step={500}
+            step="any"
             className={inputClass}
-            value={draft.commission || ""}
-            onChange={(e) => set("commission", Number(e.target.value) || 0)}
+            value={draft.commission}
+            onChange={(e) => {
+              const val = e.target.value;
+              set("commission", val === "" ? "" : Math.max(0, parseFloat(val) || 0));
+            }}
             placeholder="0"
           />
         </Field>
