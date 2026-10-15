@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import {
   getServerSnapshot,
   getSnapshot,
@@ -470,6 +471,13 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
                             >
                               {canEdit ? "Open" : "Print"}
                             </button>
+                            <Link
+                              href={`/receipts?invoice=${invoice.id}`}
+                              className="rounded-md px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                              title="Generate payment receipt for this invoice"
+                            >
+                              Receipt
+                            </Link>
                             {canCreate && (
                               <button
                                 type="button"

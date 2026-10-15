@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
   INVOICE_STATUSES,
@@ -446,6 +447,16 @@ export function InvoiceEditor({
             <span>Print / PDF</span>
           )}
         </button>
+
+        {invoice && (
+          <Link
+            href={`/receipts?invoice=${invoice.id}`}
+            className="rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 flex items-center gap-1.5"
+            title="Create a payment receipt for this invoice"
+          >
+            <span>Receipt</span>
+          </Link>
+        )}
 
         {canEdit && (
           <button

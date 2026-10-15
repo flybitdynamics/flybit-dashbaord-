@@ -31,12 +31,14 @@ import {
 import { Expense } from "./finance";
 import { Invoice, normalizeInvoice, totalsFor } from "./invoices";
 import { Quotation, normalizeQuotation } from "./quotations";
+import { Receipt, normalizeReceipt } from "./receipts";
 import {
   CLIENTS,
   EXPENSES,
   INVOICES,
   LOGS,
   QUOTATIONS,
+  RECEIPTS,
   PAYMENTS,
   PILOTS,
   PLACES,
@@ -57,6 +59,7 @@ export interface DeskState {
   places: Place[];
   invoices: Invoice[];
   quotations: Quotation[];
+  receipts: Receipt[];
   settings: Settings;
   logs: AuditLog[];
   /** Set when Firestore refuses or cannot be reached. */
@@ -74,6 +77,7 @@ let pilots: Pilot[] = [];
 let places: Place[] = [];
 let invoices: Invoice[] = [];
 let quotations: Quotation[] = [];
+let receipts: Receipt[] = [];
 let settings: Settings = DEFAULT_SETTINGS;
 let logs: AuditLog[] = [];
 let error: string | null = null;
@@ -86,6 +90,7 @@ const seen = {
   places: false,
   invoices: false,
   quotations: false,
+  receipts: false,
   settings: false,
   logs: false,
 };
@@ -102,7 +107,7 @@ function publish() {
   const ready = Object.values(seen).every(Boolean) || error !== null;
   if (!ready) return;
   const sortedLogs = [...logs].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, invoices, quotations, settings, logs: sortedLogs, error };
+  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, invoices, quotations, receipts, settings, logs: sortedLogs, error };
   emit();
 }
 
@@ -225,6 +230,17 @@ function attach() {
         publish();
       },
       denied("quotations"),
+    ),
+    onSnapshot(
+      collection(db, RECEIPTS),
+      (snap) => {
+        receipts = snap.docs
+          .map((d) => normalizeReceipt(d.id, d.data()))
+          .sort((a, b) => b.number.localeCompare(a.number));
+        seen.receipts = true;
+        publish();
+      },
+      denied("receipts"),
     ),
     onSnapshot(
       doc(db, ...SETTINGS_DOC),
@@ -609,6 +625,46 @@ export function removeQuotation(id: string): void {
     id,
     target?.number || "Quotation",
     `Deleted quotation ${target?.number || id}`,
+  );
+}
+
+/* ---------------- receipts ---------------- */
+
+export function upsertReceipt(draft: Omit<Receipt, "id">, id: string | null): string {
+  const receiptId = id ?? newId();
+  const previous = id ? receipts.find((r) => r.id === id) : null;
+  setDoc(doc(db(), RECEIPTS, receiptId), clean(draft)).catch(fail);
+
+  const who = draft.receivedFrom || "client";
+  if (previous) {
+    recordActivity(
+      "edit",
+      "payment",
+      receiptId,
+      draft.number,
+      `Updated receipt ${draft.number} for "${who}" — ${formatMoney(draft.amountReceived)}`,
+    );
+  } else {
+    recordActivity(
+      "create",
+      "payment",
+      receiptId,
+      draft.number,
+      `Issued receipt ${draft.number} for "${who}" — ${formatMoney(draft.amountReceived)}${draft.invoiceNumber ? ` (Invoice ${draft.invoiceNumber})` : ""}`,
+    );
+  }
+  return receiptId;
+}
+
+export function removeReceipt(id: string): void {
+  const target = receipts.find((r) => r.id === id);
+  deleteDoc(doc(db(), RECEIPTS, id)).catch(fail);
+  recordActivity(
+    "delete",
+    "payment",
+    id,
+    target?.number || "Receipt",
+    `Deleted receipt ${target?.number || id}`,
   );
 }
 

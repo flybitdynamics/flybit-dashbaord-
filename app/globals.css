@@ -584,7 +584,8 @@ textarea.inv-edit {
   }
 
   .inv-sheet,
-  .q-sheet {
+  .q-sheet,
+  .receipt-sheet {
     position: static !important;
     margin: 0 !important;
     box-shadow: none !important;

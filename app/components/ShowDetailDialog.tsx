@@ -223,6 +223,14 @@ export function ShowDetailDialog({
                 Invoice
               </Link>
             )}
+            {booked && (
+              <Link
+                href={`/receipts?show=${show.id}`}
+                className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
+              >
+                Receipt
+              </Link>
+            )}
             <button
               type="button"
               onClick={onPayments}

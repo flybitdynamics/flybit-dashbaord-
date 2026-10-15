@@ -90,6 +90,16 @@ const NAV = [
     ),
   },
   {
+    href: "/receipts",
+    label: "Receipts",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <path d="M4.5 2.8h11v14.4l-2.75-1.5-2.75 1.5-2.75-1.5L4.5 17.2z" />
+        <path d="M7.5 7h5M7.5 10.5h5M7.5 13.5h3" />
+      </svg>
+    ),
+  },
+  {
     href: "/finance",
     label: "Finance",
     icon: (
@@ -142,6 +152,7 @@ const MODULE_OF: Record<string, Module | null> = {
   "/pilots": "pilots",
   "/quotations": "quotations",
   "/invoices": "invoices",
+  "/receipts": "receipts",
   "/finance": "finance",
   "/team": "team",
   "/settings": null,
@@ -379,7 +390,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ---------------- FIXED MOBILE BOTTOM NAVIGATION (< md) ---------------- */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 border-t border-neutral-200 bg-white/95 shadow-lg backdrop-blur-md md:hidden">
-        {nav.filter((item) => !["/pilots", "/quotations", "/invoices", "/team", "/settings"].includes(item.href)).map((item) => {
+        {nav.filter((item) => !["/pilots", "/quotations", "/invoices", "/receipts", "/team", "/settings"].includes(item.href)).map((item) => {
           const active =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (

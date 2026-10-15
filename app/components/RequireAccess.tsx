@@ -11,6 +11,7 @@ const HREFS: Partial<Record<Module, string>> = {
   pilots: "/pilots",
   quotations: "/quotations",
   invoices: "/invoices",
+  receipts: "/receipts",
   finance: "/finance",
   team: "/team",
   settings: "/settings",
