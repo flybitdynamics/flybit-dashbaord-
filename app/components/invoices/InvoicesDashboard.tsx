@@ -21,9 +21,12 @@ import {
 } from "../../lib/invoices";
 import {
   DEFAULT_SETTINGS,
+  ListSort,
+  byLastChanged,
   daysAway,
   formatDate,
   formatMoney,
+  latestLogTimes,
   todayISO,
 } from "../../lib/types";
 import { useAuth } from "../AuthProvider";
@@ -80,6 +83,7 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
   const [linkUsed, setLinkUsed] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Standing | "all">("all");
+  const [sort, setSort] = useState<ListSort>("updated");
 
   const [driveStatus, setDriveStatus] = useState<{
     configured: boolean;
@@ -119,6 +123,7 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const ready = state !== null;
   const invoices = useMemo(() => state?.invoices ?? [], [state]);
+  const loggedAt = useMemo(() => latestLogTimes(state?.logs ?? []), [state]);
   const shows = useMemo(() => state?.shows ?? [], [state]);
   const clients = useMemo(() => state?.clients ?? [], [state]);
   const payments = useMemo(() => state?.payments ?? [], [state]);
@@ -191,7 +196,13 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
     { invoiced: 0, received: 0, outstanding: 0, overdue: 0, taxTotal: 0, subTotal: 0 },
   );
 
-  const visible = rows.filter(({ invoice, standing }) => {
+  // The store keeps invoices newest number first already.
+  const order = new Map(
+    (sort === "updated" ? byLastChanged(invoices, loggedAt) : invoices).map((invoice, i) => [invoice.id, i]),
+  );
+  const visible = [...rows]
+    .sort((a, b) => (order.get(a.invoice.id) ?? 0) - (order.get(b.invoice.id) ?? 0))
+    .filter(({ invoice, standing }) => {
     if (filter !== "all" && standing !== filter) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -349,6 +360,15 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
               placeholder="Search by number, client or subject"
               className="w-full max-w-72 rounded-md bg-white px-3 py-2 text-sm shadow-sm outline-none ring-1 ring-neutral-200 placeholder:text-neutral-400 focus-visible:ring-neutral-900"
             />
+            <select
+              aria-label="Sort invoices"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as ListSort)}
+              className="rounded-md bg-white px-2.5 py-2 text-sm text-neutral-700 shadow-sm outline-none ring-1 ring-neutral-200 focus-visible:ring-neutral-900"
+            >
+              <option value="updated">Recently updated first</option>
+              <option value="number">By number</option>
+            </select>
             <div className="flex flex-wrap gap-1">
               {filters.map((key) => (
                 <button

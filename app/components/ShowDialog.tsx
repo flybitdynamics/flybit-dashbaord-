@@ -17,10 +17,12 @@ import {
   ShowStatus,
   Zone,
   ZONES,
+  ZoneCheck,
   certificateState,
   emptyClient,
   emptyShow,
   formatMoney,
+  parseCoordinates,
 } from "../lib/types";
 import { Field, Modal, inputClass } from "./Modal";
 
@@ -75,6 +77,80 @@ const unique = (values: string[]) =>
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
+const checkedAtFormat = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" });
+
+/** What DigitalSky said for the coordinates, with the map it was read from. */
+function ZoneCheckPanel({
+  check,
+  checking,
+  drawing,
+  stale,
+  note,
+}: {
+  check: ZoneCheck | undefined;
+  checking: boolean;
+  drawing: boolean;
+  stale: boolean;
+  note: string | null;
+}) {
+  if (!check && !checking && !note) return null;
+  return (
+    <div className="mb-2 space-y-2">
+      {checking && (
+        <p className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
+          Checking the DigitalSky airspace map…
+        </p>
+      )}
+      {note && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{note}</p>
+      )}
+      {check && !checking && (
+        <div className="flex gap-3 rounded-xl border border-neutral-200 p-2">
+          {drawing && !check.screenshotUrl && (
+            <div className="flex h-20 w-32 shrink-0 items-center justify-center rounded-lg border border-dashed border-neutral-200 px-2 text-center text-xs text-neutral-400">
+              Drawing the map… save after it appears
+            </div>
+          )}
+          {check.screenshotUrl && (
+            <a href={check.screenshotUrl} target="_blank" rel="noreferrer" className="shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element -- R2 image, not optimised by next/image */}
+              <img
+                src={check.screenshotUrl}
+                alt={`DigitalSky map at ${check.coordinates}`}
+                className="h-20 w-32 rounded-lg border border-neutral-100 object-cover"
+              />
+            </a>
+          )}
+          <div className="min-w-0 text-sm">
+            <p className="flex items-center gap-1.5 font-medium text-neutral-800">
+              <span className={`size-2 rounded-full ${zoneDot[check.zone]}`} />
+              DigitalSky: {ZONES[check.zone].label} zone
+            </p>
+            {check.details.length > 0 ? (
+              <ul className="mt-0.5 text-xs text-neutral-600">
+                {check.details.slice(0, 4).map((d) => (
+                  <li key={d}>{d}</li>
+                ))}
+                {check.details.length > 4 && <li>and {check.details.length - 4} more restricted areas</li>}
+              </ul>
+            ) : (
+              <p className="mt-0.5 text-xs text-neutral-600">Not inside any restricted area.</p>
+            )}
+            <p className="mt-0.5 text-xs text-neutral-400">
+              {check.coordinates} · {checkedAtFormat.format(new Date(check.checkedAt))}
+            </p>
+            {stale && (
+              <p className="mt-0.5 text-xs font-medium text-amber-700">
+                The coordinates have changed since this check — check again.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Section({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-neutral-100 pb-1.5 pt-2 sm:col-span-2">
@@ -124,6 +200,73 @@ export function ShowDialog({
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
+
+  const [checking, setChecking] = useState(false);
+  const [checkNote, setCheckNote] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  const checkedCoords = draft.zoneCheck?.coordinates.trim() ?? "";
+  const checkIsStale = Boolean(draft.zoneCheck) && checkedCoords !== draft.coordinates.trim();
+
+  /** Asks the DigitalSky map for the zone at the coordinates, then sets the
+   *  zone from its answer and keeps the screenshot as the evidence. */
+  async function checkZone() {
+    const coordinates = draft.coordinates.trim();
+    if (checking) return;
+    if (!parseCoordinates(coordinates)) {
+      setCheckNote("Enter coordinates as latitude, longitude — e.g. 21.704094, 72.998823.");
+      return;
+    }
+    setChecking(true);
+    setCheckNote(null);
+    try {
+      const res = await fetch("/api/zone-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coordinates }),
+      });
+      const data = (await res.json()) as { check?: ZoneCheck; error?: string };
+      if (!res.ok || !data.check) throw new Error(data.error || "The DigitalSky check failed.");
+      const check = data.check;
+      setDraft((prev) => ({ ...prev, zone: check.zone, zoneCheck: check }));
+      void drawZoneMap(check);
+    } catch (err) {
+      setCheckNote(err instanceof Error ? err.message : "The DigitalSky check failed.");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  /** The map image comes after the zone: tiles can be slow, and the zone
+   *  should not wait on them. It is attached only if that check is still the
+   *  current one. */
+  async function drawZoneMap(check: ZoneCheck) {
+    setDrawing(true);
+    try {
+      const res = await fetch("/api/zone-check/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coordinates: check.coordinates }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(data.error || "The map image could not be made.");
+      const url = data.url;
+      setDraft((prev) =>
+        prev.zoneCheck?.checkedAt === check.checkedAt
+          ? { ...prev, zoneCheck: { ...prev.zoneCheck, screenshotUrl: url } }
+          : prev,
+      );
+    } catch (err) {
+      setCheckNote(`The zone was read, but ${err instanceof Error ? err.message : "the map image failed."}`);
+    } finally {
+      setDrawing(false);
+    }
+  }
+
+  /** Checks on leaving the field, once per new set of coordinates. */
+  function checkZoneOnBlur() {
+    const coordinates = draft.coordinates.trim();
+    if (coordinates && coordinates !== checkedCoords && parseCoordinates(coordinates)) void checkZone();
+  }
 
   function chooseClient(value: string) {
     setChoice(value);
@@ -494,13 +637,25 @@ export function ShowDialog({
         </Field>
 
         <Field label="Coordinates" htmlFor="f-coords" hint="Latitude, longitude of the takeoff point.">
-          <input
-            id="f-coords"
-            className={inputClass}
-            value={draft.coordinates}
-            onChange={(e) => set("coordinates", e.target.value)}
-            placeholder="23.036500, 72.507400"
-          />
+          <div className="flex gap-2">
+            <input
+              id="f-coords"
+              className={inputClass}
+              value={draft.coordinates}
+              onChange={(e) => set("coordinates", e.target.value)}
+              onBlur={checkZoneOnBlur}
+              placeholder="23.036500, 72.507400"
+            />
+            <button
+              type="button"
+              onClick={() => void checkZone()}
+              disabled={checking || !draft.coordinates.trim()}
+              className="shrink-0 rounded-xl border border-neutral-200 px-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+              title="Look these coordinates up on the DigitalSky airspace map"
+            >
+              {checking ? "Checking…" : draft.zoneCheck && !checkIsStale ? "Check again" : "Check zone"}
+            </button>
+          </div>
         </Field>
 
         <Field
@@ -521,8 +676,9 @@ export function ShowDialog({
         <Field
           label="Zone"
           wide
-          hint="From the DGCA airspace map for this venue — digitalsky.dgca.gov.in."
+          hint="Set from the DigitalSky airspace map when you check the coordinates — change it here if you disagree."
         >
+          <ZoneCheckPanel check={draft.zoneCheck} checking={checking} drawing={drawing} stale={checkIsStale} note={checkNote} />
           <div className="grid gap-2 sm:grid-cols-3">
             {(Object.keys(ZONES) as Zone[]).map((zone) => {
               const active = draft.zone === zone;

@@ -10,12 +10,14 @@ import {
   SHOW_STATUSES,
   Show,
   ZONES,
+  byLastChanged,
   formatDate,
   formatMoney,
   formatCompactMoney,
   isBooked,
   isOpen,
   isOverdue,
+  latestLogTimes,
   paymentStateOf,
   pendingFor,
   receivedFor,
@@ -80,6 +82,7 @@ export function Dashboard() {
   const pilots = useMemo(() => state?.pilots ?? [], [state]);
   const members = useMemo(() => team?.members ?? [], [team]);
   const places = useMemo(() => state?.places ?? [], [state]);
+  const loggedAt = useMemo(() => latestLogTimes(state?.logs ?? []), [state]);
   const settings = state?.settings;
   const storeError = state?.error ?? null;
 
@@ -101,7 +104,7 @@ export function Dashboard() {
 
   const visible = useMemo(() => {
     const query = filters.query.trim().toLowerCase();
-    return shows.filter((show) => {
+    const matching = shows.filter((show) => {
       if (filters.zone !== "all" && show.zone !== filters.zone) return false;
 
       if (filters.status === "open") {
@@ -156,7 +159,9 @@ export function Dashboard() {
 
       return true;
     });
-  }, [shows, payments, filters, pilotNames]);
+    // The store keeps shows in show-date order already.
+    return filters.sort === "updated" ? byLastChanged(matching, loggedAt) : matching;
+  }, [shows, payments, filters, pilotNames, loggedAt]);
 
   // Financial totals across all booked/flown shows
   const bookedShows = useMemo(() => shows.filter(isBooked), [shows]);

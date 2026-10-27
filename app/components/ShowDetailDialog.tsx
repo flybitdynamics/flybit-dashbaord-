@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useSyncExternalStore } from "react";
 
+import { getServerSnapshot, getSnapshot, subscribe } from "../lib/store";
 import {
   Client,
+  DEFAULT_SETTINGS,
   PIPELINE,
   Payment,
   Pilot,
@@ -162,6 +165,32 @@ export function ShowDetailDialog({
   const client = clients.find((c) => c.id === show.clientId);
   const crew = pilots.filter((p) => show.pilotIds.includes(p.id));
   const booked = isBooked(show);
+  const desk = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [reporting, setReporting] = useState(false);
+
+  /** The whole-show PDF for management. jsPDF loads only when asked for. */
+  async function downloadReport() {
+    setReporting(true);
+    try {
+      const { downloadShowReport } = await import("../lib/show-report");
+      await downloadShowReport({
+        show,
+        client,
+        pilots,
+        settings: desk?.settings ?? DEFAULT_SETTINGS,
+      });
+    } catch (err) {
+      console.error("Show report failed:", err);
+      alert(`The report could not be made: ${err instanceof Error ? err.message : "unknown error"}`);
+    } finally {
+      setReporting(false);
+    }
+  }
+
+  /** Maps opens on this show's takeoff point and offers to save back to it. */
+  const planHref = `/maps?show=${encodeURIComponent(show.id)}${
+    show.coordinates.trim() ? `&at=${encodeURIComponent(show.coordinates.trim())}` : ""
+  }`;
 
   function move(to: ShowStatus) {
     if (to === "confirmed") {
@@ -197,7 +226,25 @@ export function ShowDetailDialog({
       width="max-w-3xl"
       footer={
         <>
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => void downloadReport()}
+              disabled={reporting}
+              className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200 disabled:opacity-50"
+              title="Download a PDF with everything about this show, for management"
+            >
+              {reporting ? "Making report…" : "Report PDF"}
+            </button>
+            <a
+              href={planHref}
+              target="_blank"
+              rel="noopener"
+              className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
+              title="Plan the drone formation for this show in Maps"
+            >
+              Plan layout
+            </a>
             {canDocuments && (
               <button
                 type="button"
@@ -310,6 +357,33 @@ export function ShowDetailDialog({
           <Row label="Zone means">
             <span className="text-xs text-neutral-500">{ZONES[show.zone].hint}</span>
           </Row>
+          {show.zoneCheck && (
+            <Row label="DigitalSky check">
+              <span className="text-xs text-neutral-600">
+                {ZONES[show.zoneCheck.zone].label}
+                {show.zoneCheck.zone !== show.zone && " (zone was changed by hand)"}
+                {show.zoneCheck.screenshotUrl && (
+                  <>
+                    {" · "}
+                    <a href={show.zoneCheck.screenshotUrl} target="_blank" rel="noreferrer" className="underline">
+                      map screenshot
+                    </a>
+                  </>
+                )}
+              </span>
+            </Row>
+          )}
+          {show.layout && (
+            <Row label="Show layout">
+              <span className="text-xs text-neutral-600">
+                {show.layout.rows} × {show.layout.cols}, {show.layout.drones} drones
+                {" · "}
+                <a href={show.layout.imageUrl} target="_blank" rel="noreferrer" className="underline">
+                  layout map
+                </a>
+              </span>
+            </Row>
+          )}
           <Row label="Permission">
             <PermissionLabel status={show.permission} />
           </Row>

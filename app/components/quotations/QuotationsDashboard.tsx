@@ -17,7 +17,7 @@ import {
   nextQuotationNumber,
   quotationFromShow,
 } from "../../lib/quotations";
-import { DEFAULT_SETTINGS, formatDate } from "../../lib/types";
+import { DEFAULT_SETTINGS, ListSort, byLastChanged, formatDate, latestLogTimes } from "../../lib/types";
 import { useAuth } from "../AuthProvider";
 import { SiteHeader } from "../SiteHeader";
 import { QuotationEditor } from "./QuotationEditor";
@@ -45,10 +45,12 @@ export function QuotationsDashboard({ fromShowId = "" }: { fromShowId?: string }
   const [linkUsed, setLinkUsed] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<QuotationStatus | "all">("all");
+  const [sort, setSort] = useState<ListSort>("updated");
 
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const ready = state !== null;
   const quotations = useMemo(() => state?.quotations ?? [], [state]);
+  const loggedAt = useMemo(() => latestLogTimes(state?.logs ?? []), [state]);
   const shows = useMemo(() => state?.shows ?? [], [state]);
   const clients = useMemo(() => state?.clients ?? [], [state]);
   const settings = state?.settings ?? DEFAULT_SETTINGS;
@@ -105,7 +107,9 @@ export function QuotationsDashboard({ fromShowId = "" }: { fromShowId?: string }
     close();
   }
 
-  const visible = quotations.filter((quotation) => {
+  // The store keeps quotations newest number first already.
+  const ordered = sort === "updated" ? byLastChanged(quotations, loggedAt) : quotations;
+  const visible = ordered.filter((quotation) => {
     if (filter !== "all" && quotation.status !== filter) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -185,6 +189,15 @@ export function QuotationsDashboard({ fromShowId = "" }: { fromShowId?: string }
               placeholder="Search by number, client or subject"
               className="w-full max-w-72 rounded-md bg-white px-3 py-2 text-sm shadow-sm outline-none ring-1 ring-neutral-200 placeholder:text-neutral-400 focus-visible:ring-neutral-900"
             />
+            <select
+              aria-label="Sort quotations"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as ListSort)}
+              className="rounded-md bg-white px-2.5 py-2 text-sm text-neutral-700 shadow-sm outline-none ring-1 ring-neutral-200 focus-visible:ring-neutral-900"
+            >
+              <option value="updated">Recently updated first</option>
+              <option value="number">By number</option>
+            </select>
             <div className="flex flex-wrap gap-1">
               {filters.map((key) => (
                 <button

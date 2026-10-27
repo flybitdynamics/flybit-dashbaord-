@@ -122,6 +122,17 @@ const NAV = [
     ),
   },
   {
+    href: "/maps",
+    label: "Maps",
+    newTab: true,
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <path d="M2.8 5.2 7.4 3l5.2 2.2L17.2 3v11.8l-4.6 2.2-5.2-2.2-4.6 2.2z" />
+        <path d="M7.4 3v11.8M12.6 5.2V17" />
+      </svg>
+    ),
+  },
+  {
     href: "/settings",
     label: "Settings",
     icon: (
@@ -143,6 +154,11 @@ const NAV = [
   },
 ];
 
+/** A section that is its own full-window app opens in a new tab. */
+function newTabProps(item: { newTab?: boolean }) {
+  return item.newTab ? { target: "_blank", rel: "noopener" } : {};
+}
+
 /** Which permission opens each section. Settings is always there, because
  *  My account lives in it. */
 const MODULE_OF: Record<string, Module | null> = {
@@ -155,6 +171,7 @@ const MODULE_OF: Record<string, Module | null> = {
   "/receipts": "receipts",
   "/finance": "finance",
   "/team": "team",
+  "/maps": null,
   "/settings": null,
   "/logs": null,
 };
@@ -169,6 +186,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const roleLabel = isSuperAdmin ? "Super admin" : role?.name ?? "No role";
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  /* The map planner fills its own tab, with no sidebar around it. */
+  if (pathname.startsWith("/maps")) return <>{children}</>;
 
   function toggle() {
     setCollapsed((prev) => {
@@ -252,6 +272,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     onClick={() => setDrawerOpen(false)}
+                    {...newTabProps(item)}
                     className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active
                       ? "bg-neutral-900 text-white"
                       : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
@@ -338,6 +359,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 title={collapsed ? item.label : undefined}
                 aria-current={active ? "page" : undefined}
+                {...newTabProps(item)}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${collapsed ? "justify-center px-2" : ""
                   } ${active
                     ? "bg-neutral-900 text-white"
@@ -390,7 +412,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ---------------- FIXED MOBILE BOTTOM NAVIGATION (< md) ---------------- */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 border-t border-neutral-200 bg-white/95 shadow-lg backdrop-blur-md md:hidden">
-        {nav.filter((item) => !["/pilots", "/quotations", "/invoices", "/receipts", "/team", "/settings"].includes(item.href)).map((item) => {
+        {nav.filter((item) => !["/pilots", "/quotations", "/invoices", "/receipts", "/maps", "/team", "/settings"].includes(item.href)).map((item) => {
           const active =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (

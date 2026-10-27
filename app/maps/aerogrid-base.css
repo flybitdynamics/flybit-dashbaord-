@@ -1,0 +1,36 @@
+/* AeroGrid Pro was built without Tailwind, against the browser's own defaults.
+   The desk's Tailwind base styles (preflight) still load on this page, so this
+   puts back the defaults preflight changes. Every rule is zero-specificity and
+   outside any layer: it beats preflight (which sits in a layer) but loses to
+   every rule in the planner's own stylesheets. Loaded on /maps only. */
+
+:where(#root) {
+  line-height: normal;
+}
+
+:where(#root) :where(button, input, select, textarea) {
+  font: revert;
+  color: revert;
+  background-color: revert;
+  border: revert;
+  border-radius: revert;
+}
+
+:where(#root) :where(h1, h2, h3, h4, h5, h6) {
+  font-size: revert;
+  font-weight: revert;
+}
+
+:where(#root) :where(a) {
+  color: revert;
+  text-decoration: revert;
+}
+
+:where(#root) :where(img, svg, video, canvas) {
+  display: revert;
+  vertical-align: revert;
+}
+
+:where(#root) :where(ol, ul) {
+  list-style: revert;
+}

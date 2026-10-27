@@ -1,0 +1,492 @@
+:root {
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Outfit', sans-serif;
+
+  /* Clean Light Theme Tokens */
+  --bg-dark: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --bg-panel: rgba(255, 255, 255, 0.98);
+  --bg-muted: #f1f5f9;
+
+  --border-subtle: #e2e8f0;
+  --border-bright: rgba(234, 88, 12, 0.3);
+  --border-active: #ea580c;
+
+  /* Refined, Light, Soft Warm Accents (No harsh neon!) */
+  --primary-orange: #ea580c;
+  --primary-orange-light: #f97316;
+  --primary-orange-soft: #fff7ed;
+  --primary-amber: #d97706;
+  --primary-gold: #b45309;
+  --primary-cyan: #ea580c;
+  /* compatibility alias */
+  --primary-blue: #ea580c;
+  --primary-gradient: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+
+  --accent-neon: #059669;
+  --accent-amber: #d97706;
+  --accent-rose: #e11d48;
+  --accent-purple: #7c3aed;
+
+  --text-main: #0f172a;
+  /* Slate 900 */
+  --text-body: #334155;
+  /* Slate 700 */
+  --text-muted: #64748b;
+  /* Slate 500 */
+  --text-dim: #94a3b8;
+  /* Slate 400 */
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 4px 14px rgba(234, 88, 12, 0.15);
+  --glass-blur: blur(12px);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Leaflet map styling overrides for clean light aesthetic */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #e2e8f0 !important;
+  font-family: var(--font-body);
+}
+
+.leaflet-control-zoom {
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  transition: all 0.2s ease;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: #f8fafc !important;
+  color: var(--primary-orange) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.leaflet-popup-tip {
+  background: #ffffff !important;
+}
+
+.leaflet-popup-content {
+  margin: 12px 16px !important;
+  font-size: 13px !important;
+  line-height: 1.5;
+}
+
+/* Clean Refined Marker for Drone Points */
+.drone-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #ea580c;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.drone-marker:hover {
+  transform: scale(1.35);
+  background: #c2410c;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  z-index: 1000 !important;
+}
+
+.drone-marker.leader {
+  background: #f43f5e;
+  box-shadow: 0 0 12px #f43f5e, 0 0 24px rgba(244, 63, 94, 0.6);
+}
+
+.vertex-handle {
+  width: 16px;
+  height: 16px;
+  background: #d97706;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 2200 !important;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.vertex-handle:hover {
+  transform: scale(1.3);
+  background: #b45309;
+}
+
+/* Edge Midpoint Resize Handles */
+.edge-handle {
+  width: 13px;
+  height: 13px;
+  background: #059669;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 2100 !important;
+  transition: transform 0.15s ease;
+}
+
+.edge-handle:hover {
+  transform: scale(1.35);
+  background: #047857;
+}
+
+/* Center Move Handle to translate the whole grid */
+.center-move-handle {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 10px rgba(234, 88, 12, 0.35);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  z-index: 2500 !important;
+}
+
+.center-move-handle:active {
+  cursor: grabbing;
+  transform: scale(1.3);
+  background: #c2410c;
+}
+
+.center-move-handle:hover {
+  transform: scale(1.18);
+  box-shadow: 0 3px 12px rgba(234, 88, 12, 0.45);
+}
+
+/* Rotation Handle to rotate the swarm grid */
+.rotation-handle {
+  width: 26px;
+  height: 26px;
+  background: #ea580c;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  z-index: 2600 !important;
+}
+
+.rotation-handle:active {
+  cursor: grabbing;
+  transform: scale(1.25);
+}
+
+.rotation-handle:hover {
+  transform: scale(1.18);
+}
+
+/* Draggable Swarm Polygon Styles */
+.draggable-swarm-polygon {
+  cursor: grab !important;
+  transition: fill-opacity 0.2s ease, stroke-width 0.2s ease;
+}
+
+.draggable-swarm-polygon:hover {
+  fill-opacity: 0.25 !important;
+  stroke-width: 3px !important;
+}
+
+.draggable-swarm-polygon:active {
+  cursor: grabbing !important;
+}
+
+/* Drone Operator Station (Pilot on Chair) Marker */
+.operator-chair-marker {
+  width: 34px;
+  height: 34px;
+  background: #ffffff;
+  border: 2px solid #ea580c;
+  border-radius: 50%;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  z-index: 2800 !important;
+}
+
+.operator-chair-marker:active {
+  cursor: grabbing;
+  transform: scale(1.25);
+}
+
+.operator-chair-marker:hover {
+  transform: scale(1.15);
+}
+
+/* 3 Ground Station Antennas Markers */
+.antenna-marker {
+  width: 24px;
+  height: 24px;
+  background: #ffffff;
+  border: 1.5px solid #ea580c;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2750 !important;
+  transition: transform 0.15s ease;
+}
+
+.antenna-marker:hover {
+  transform: scale(1.2);
+}
+
+/* 10-Foot Refined Amber-Gold Safety Barricade Perimeter */
+.barricade-polygon {
+  stroke: #d97706 !important;
+  stroke-dasharray: 8, 6 !important;
+  stroke-width: 2px !important;
+  fill: rgba(245, 158, 11, 0.08) !important;
+  pointer-events: none !important;
+}
+
+/* Map Text Annotation Badges */
+.map-text-annotation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1.5px solid #ea580c;
+  border-radius: 8px;
+  color: #0f172a;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  cursor: grab;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  transition: transform 0.15s ease;
+  z-index: 2900 !important;
+}
+
+.map-text-annotation:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.map-text-annotation:active {
+  cursor: grabbing;
+  transform: scale(1.08);
+}
+
+.map-text-annotation.yellow {
+  border-color: #d97706;
+  color: #92400e;
+  background: #fffbeb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.map-text-annotation.red {
+  border-color: #f43f5e;
+  color: #9f1239;
+  background: #fff1f2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.map-text-annotation.green {
+  border-color: #10b981;
+  color: #065f46;
+  background: #ecfdf5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.map-text-annotation.purple {
+  border-color: #a855f7;
+  color: #581c87;
+  background: #faf5ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Directional Arrow Labels & Handles */
+.map-arrow-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  color: #334155;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+}
+
+.arrow-handle-marker {
+  width: 15px;
+  height: 15px;
+  background: #ea580c;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  cursor: grab;
+  z-index: 2950 !important;
+}
+
+.arrow-handle-marker:active {
+  cursor: grabbing;
+  transform: scale(1.25);
+}
+
+/* Report Modal Styles */
+.report-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.report-modal-card {
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.15);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.report-modal-header {
+  padding: 16px 20px;
+  background: #09090b;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.report-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #ffffff;
+}
+
+.report-modal-footer {
+  padding: 14px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.report-preview-img-container {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.report-preview-img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+.report-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .report-spec-grid {
+    grid-template-columns: 1fr;
+  }
+}

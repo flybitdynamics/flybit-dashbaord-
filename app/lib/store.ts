@@ -23,6 +23,7 @@ import {
   SHOW_STATUSES,
   Settings,
   Show,
+  ShowLayout,
   ShowStatus,
   formatMoney,
   normalizeShow,
@@ -334,7 +335,7 @@ export function recordActivity(
 export function upsertShow(draft: Omit<Show, "id">, id: string | null): string {
   const showId = id ?? newId();
   const oldShow = id ? shows.find((s) => s.id === id) : null;
-  const body = clean({ ...draft } as Omit<Show, "id"> & { id?: string });
+  const body = clean({ ...draft, updatedAt: new Date().toISOString() } as Omit<Show, "id"> & { id?: string });
   delete body.id;
   setDoc(doc(db(), SHOWS, showId), body).catch(fail);
   rememberPlace(draft.state, draft.location, draft.area);
@@ -388,7 +389,7 @@ export function setShowStatus(id: string, status: ShowStatus): void {
   const title = target?.client || target?.location || "Show";
   const oldStatusLabel = target ? SHOW_STATUSES[target.showStatus] : "";
   const newStatusLabel = SHOW_STATUSES[status];
-  updateDoc(doc(db(), SHOWS, id), { showStatus: status }).catch(fail);
+  updateDoc(doc(db(), SHOWS, id), { showStatus: status, updatedAt: new Date().toISOString() }).catch(fail);
 
   const detailText = oldStatusLabel
     ? `Changed stage of show "${title}" from ${oldStatusLabel} to ${newStatusLabel}`
@@ -424,7 +425,7 @@ export async function importShows(drafts: Array<Omit<Show, "id">>): Promise<numb
   const places = new Map<string, { state: string; city: string; area: string }>();
 
   for (const draft of drafts) {
-    batch.set(doc(instance, SHOWS, newId()), clean({ ...draft }));
+    batch.set(doc(instance, SHOWS, newId()), clean({ ...draft, updatedAt: new Date().toISOString() }));
     if (draft.location.trim()) {
       places.set(placeId(draft.state, draft.location, draft.area), {
         state: draft.state.trim(),
@@ -537,7 +538,7 @@ export function removePilot(id: string): void {
 export function upsertInvoice(draft: Omit<Invoice, "id">, id: string | null): string {
   const invoiceId = id ?? newId();
   const previous = id ? invoices.find((i) => i.id === id) : null;
-  setDoc(doc(db(), INVOICES, invoiceId), clean(draft)).catch(fail);
+  setDoc(doc(db(), INVOICES, invoiceId), clean({ ...draft, updatedAt: new Date().toISOString() })).catch(fail);
 
   const total = totalsFor({ ...draft, id: invoiceId });
   const who = draft.billTo.name || "client";
@@ -588,7 +589,7 @@ export function removeInvoice(id: string): void {
 export function upsertQuotation(draft: Omit<Quotation, "id">, id: string | null): string {
   const quotationId = id ?? newId();
   const previous = id ? quotations.find((q) => q.id === id) : null;
-  setDoc(doc(db(), QUOTATIONS, quotationId), clean(draft)).catch(fail);
+  setDoc(doc(db(), QUOTATIONS, quotationId), clean({ ...draft, updatedAt: new Date().toISOString() })).catch(fail);
 
   const who = draft.to.split("\n")[0] || "client";
   if (previous) {
@@ -648,6 +649,7 @@ export function upsertReceipt(draft: Omit<Receipt, "id">, id: string | null): st
       const invTotals = totalsFor(inv);
       const isPaid = totalPaid >= invTotals.total && invTotals.total > 0;
       const patch: Partial<Invoice> = {
+        updatedAt: new Date().toISOString(),
         paymentMade: Math.min(invTotals.total, totalPaid),
         ...(isPaid ? { status: "paid" } : inv.status === "paid" ? { status: "sent" } : {}),
       };
@@ -691,6 +693,7 @@ export function removeReceipt(id: string): void {
       const invTotals = totalsFor(inv);
       const isPaid = totalPaid >= invTotals.total && invTotals.total > 0;
       const patch: Partial<Invoice> = {
+        updatedAt: new Date().toISOString(),
         paymentMade: Math.min(invTotals.total, totalPaid),
         ...(isPaid ? { status: "paid" } : inv.status === "paid" ? { status: "sent" } : {}),
       };
@@ -767,6 +770,20 @@ export function updateSettings(next: Settings): void {
 }
 
 /** Point older shows at a client record without touching anything else. */
+/** Attach the formation planned in Maps to a show. */
+export function saveShowLayout(id: string, layout: ShowLayout): void {
+  const target = shows.find((s) => s.id === id);
+  const title = target?.client || target?.location || "Show";
+  updateDoc(doc(db(), SHOWS, id), { layout, updatedAt: new Date().toISOString() }).catch(fail);
+  recordActivity(
+    "edit",
+    "show",
+    id,
+    title,
+    `Saved show layout for "${title}": ${layout.rows} × ${layout.cols} grid, ${layout.drones} drones, ${layout.spacingMeters} m spacing`,
+  );
+}
+
 export function setShowClient(id: string, clientId: string, name: string): void {
   updateDoc(doc(db(), SHOWS, id), { clientId, client: name }).catch(fail);
 }

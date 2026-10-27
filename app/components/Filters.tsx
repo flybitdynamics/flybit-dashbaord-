@@ -10,6 +10,8 @@ export interface FilterState {
   /** "open" = inquiry, confirmed and completed — everything still in play. */
   status: "open" | "all" | ShowStatus;
   pilotId: "all" | string;
+  /** "updated" puts the shows changed most recently at the top. */
+  sort: "updated" | "date";
 }
 
 export const defaultFilters: FilterState = {
@@ -18,6 +20,7 @@ export const defaultFilters: FilterState = {
   payment: "all",
   status: "all",
   pilotId: "all",
+  sort: "updated",
 };
 
 const zoneOptions: { value: Zone | "all"; label: string }[] = [
@@ -116,6 +119,16 @@ export function Filters({
         <option value="overdue">Overdue pending</option>
         <option value="partial">Partially paid</option>
         <option value="paid">Paid in full</option>
+      </select>
+
+      <select
+        aria-label="Sort shows"
+        className={selectClass}
+        value={filters.sort}
+        onChange={(e) => set("sort", e.target.value as FilterState["sort"])}
+      >
+        <option value="updated">Recently updated first</option>
+        <option value="date">By show date</option>
       </select>
 
       {pilots.length > 0 && (

@@ -68,6 +68,8 @@ export interface Invoice {
   /** Prints the computer-generated note under the frame. */
   fineprint: boolean;
   createdAt: string;
+  /** Stamped on every save; older invoices fall back to the activity log. */
+  updatedAt?: string;
 }
 
 /** GST state codes — the number printed after the place of supply. */

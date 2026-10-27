@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // AeroGrid Pro, brought over as-is from its own Vite project
+    // ("Maps Detection"); it follows that project's lint rules, not these.
+    "app/maps/aerogrid/**",
   ]),
 ]);
 

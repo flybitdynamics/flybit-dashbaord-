@@ -30,6 +30,13 @@ export interface Show {
   venueAddress: string;
   coordinates: string;
   zone: Zone;
+  /** What the DigitalSky airspace map said for the coordinates, when it was
+   *  asked. The zone above stays editable; this is the evidence. */
+  zoneCheck?: ZoneCheck;
+  /** The formation planned for this show in Maps (AeroGrid), if saved. */
+  layout?: ShowLayout;
+  /** Stamped on every save; older shows fall back to the activity log. */
+  updatedAt?: string;
 
   /* When. */
   bookingDate: string;
@@ -49,6 +56,80 @@ export interface Show {
   contact?: string;
   person?: string;
   b2b?: string;
+}
+
+/** How the quotation and invoice lists are ordered. */
+export type ListSort = "updated" | "number";
+
+/** When a record last changed: its own `updatedAt`, or for records saved
+ *  before that stamp existed, the newest activity-log entry about it, or
+ *  failing both, when it was made. ISO strings, so they sort as text. */
+export function lastChangedAt(
+  record: { id: string; updatedAt?: string; createdAt?: string },
+  loggedAt: Map<string, string>,
+): string {
+  const stamps = [record.updatedAt, loggedAt.get(record.id), record.createdAt].filter(Boolean) as string[];
+  return stamps.reduce((latest, stamp) => (stamp > latest ? stamp : latest), "");
+}
+
+/** The newest activity-log time for each record id. */
+export function latestLogTimes(logs: AuditLog[]): Map<string, string> {
+  const times = new Map<string, string>();
+  for (const log of logs) {
+    const seen = times.get(log.entityId);
+    if (!seen || log.timestamp > seen) times.set(log.entityId, log.timestamp);
+  }
+  return times;
+}
+
+/** Newest change first. */
+export function byLastChanged<T extends { id: string; updatedAt?: string; createdAt?: string }>(
+  records: T[],
+  loggedAt: Map<string, string>,
+): T[] {
+  return [...records].sort((a, b) => lastChangedAt(b, loggedAt).localeCompare(lastChangedAt(a, loggedAt)));
+}
+
+/** A drone formation laid out in Maps (AeroGrid Pro) and saved to a show. */
+export interface ShowLayout {
+  /** The planner's map snapshot, saved to R2. */
+  imageUrl: string;
+  savedAt: string;
+  center: { lat: number; lng: number };
+  rows: number;
+  cols: number;
+  drones: number;
+  spacingMeters: number;
+  angleDeg: number;
+  altitudeMeters: number;
+  /** Formation footprint. */
+  droneAreaSqM: number;
+  /** Safety barricade around the formation and the pilot station. */
+  barricadeFeet: number;
+  barricadeWidthM: number;
+  barricadeHeightM: number;
+  barricadeAreaSqM: number;
+  /** Where the pilot sits, e.g. "south, 5 m from the grid". */
+  operator: string;
+  /* The planner's own settings, so reopening the show in Maps puts the same
+     layout back. Absent on layouts saved before they were kept. */
+  droneLimit?: number | null;
+  showOperator?: boolean;
+  operatorSide?: string;
+  operatorDistance?: number;
+  operatorPosition?: { lat: number; lng: number } | null;
+}
+
+/** One lookup on the DigitalSky airspace map (digitalsky.aai.aero). */
+export interface ZoneCheck {
+  zone: Zone;
+  /** The coordinates that were looked up, as typed. */
+  coordinates: string;
+  /** The map at that point, saved to R2. Empty if the upload failed. */
+  screenshotUrl: string;
+  checkedAt: string;
+  /** Each restricted area the point falls in, e.g. "Airport red — Indira Gandhi International". */
+  details: string[];
 }
 
 /** Anyone who pays for a show — a direct customer or a B2B agency. */
@@ -298,6 +379,15 @@ export function emptyShow(): Omit<Show, "id"> {
 
 /** Read a stored show whatever version wrote it: fills fields added since,
  *  and maps the old status and single contact string forward. */
+/** "21.704, 72.998" → [21.704, 72.998], or null if it is not a point in India. */
+export function parseCoordinates(text: string): [number, number] | null {
+  const parts = text.split(/[,\s]+/).filter(Boolean).map(Number);
+  if (parts.length !== 2 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [lat, lon] = parts;
+  if (lat < 6 || lat > 38 || lon < 68 || lon > 98) return null;
+  return [lat, lon];
+}
+
 export function normalizeShow(id: string, raw: Record<string, unknown>): Show {
   const base = emptyShow();
   const merged = { ...base, ...raw } as Show & { showStatus: string };

@@ -55,6 +55,8 @@ export interface Quotation {
   showId: string;
   clientId: string;
   createdAt: string;
+  /** Stamped on every save; older quotations fall back to the activity log. */
+  updatedAt?: string;
 }
 
 export const QUOTATION_PREFIX = "FD";
