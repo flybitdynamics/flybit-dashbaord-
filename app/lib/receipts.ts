@@ -123,17 +123,73 @@ export function emptyReceipt(suggestedNumber = "REC-2026-001"): Omit<Receipt, "i
   };
 }
 
-/** Creates a receipt pre-filled directly from an Invoice and optional received amount. */
+/** Computes the payment standing of an invoice based on all issued receipts */
+export function invoiceReceiptSummary(
+  invoice: Invoice,
+  receipts: Receipt[],
+  excludeReceiptId?: string | null,
+) {
+  const totals = totalsFor(invoice);
+  const relevantReceipts = receipts.filter(
+    (r) =>
+      (r.invoiceId === invoice.id ||
+        (Boolean(r.invoiceNumber) && r.invoiceNumber.trim() === invoice.number.trim())) &&
+      (!excludeReceiptId || (r.id !== excludeReceiptId && r.number !== excludeReceiptId)),
+  );
+  const totalReceived = relevantReceipts.reduce((sum, r) => sum + (r.amountReceived || 0), 0);
+
+  // When invoice balance is 0 or status is paid or receipts cover total, balance is 0
+  const isZeroBalance =
+    totals.balance <= 0 ||
+    invoice.status === "paid" ||
+    (totals.total > 0 && totalReceived >= totals.total);
+
+  const remainingPending = isZeroBalance
+    ? 0
+    : Math.max(0, Math.min(totals.balance, totals.total - totalReceived));
+  const isFullyMatched = isZeroBalance;
+
+  return {
+    invoiceTotal: totals.total,
+    invoiceBalance: totals.balance,
+    totalReceived,
+    remainingPending,
+    isFullyMatched,
+    isZeroBalance,
+    receiptCount: relevantReceipts.length,
+    receipts: relevantReceipts,
+  };
+}
+
+/** Creates a receipt pre-filled directly from an Invoice and optional received amount.
+ *  If prior receipts already exist for this invoice, defaults to the remaining pending amount. */
 export function receiptFromInvoice(
   invoice: Invoice,
   suggestedNumber = "REC-2026-001",
   amountPaid?: number,
   mode: ReceiptPaymentMode = "bank",
   show?: Show | null,
+  allReceipts: Receipt[] = [],
+  excludeReceiptId?: string | null,
 ): Omit<Receipt, "id"> {
+  const summary = invoiceReceiptSummary(invoice, allReceipts, excludeReceiptId);
   const totals = totalsFor(invoice);
-  const received = amountPaid !== undefined && amountPaid > 0 ? amountPaid : totals.total;
-  const balance = Math.max(0, totals.total - received);
+
+  // Default to remaining pending balance if previous receipts exist, otherwise the full total
+  const defaultAmount =
+    amountPaid !== undefined && amountPaid > 0
+      ? amountPaid
+      : summary.receiptCount > 0
+        ? summary.remainingPending
+        : totals.total;
+
+
+  const received = Math.max(0, defaultAmount);
+  // Remaining balance after this receipt is issued
+  const balance = Math.max(0, totals.total - (summary.totalReceived + received));
+
+  const installmentLabel =
+    summary.receiptCount > 0 ? ` (Part Payment #${summary.receiptCount + 1})` : "";
 
   const showDescription = show
     ? `Drone Light Show (${show.droneCount} drones) at ${show.location || show.state || "Venue"}${show.showDate ? ` on ${receiptDate(show.showDate)}` : ""}`
@@ -156,7 +212,7 @@ export function receiptFromInvoice(
     balanceDue: balance,
     paymentMode: mode,
     referenceNumber: "",
-    notes: `Issued against Tax Invoice ${invoice.number}`,
+    notes: `Issued against Tax Invoice ${invoice.number}${installmentLabel}`,
     title: mode === "cash" ? "Cash Receipt" : "Payment Receipt",
     signature: true,
     fineprint: true,

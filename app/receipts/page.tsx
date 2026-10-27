@@ -7,13 +7,17 @@ export const metadata = { title: "Receipts — FlyBit" };
 export default async function ReceiptsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invoice?: string; show?: string }>;
+  searchParams: Promise<{ invoice?: string; show?: string; view?: string }>;
 }) {
-  const { invoice, show } = await searchParams;
+  const { invoice, show, view } = await searchParams;
 
   return (
     <RequireAccess module="receipts">
-      <ReceiptsDashboard fromInvoiceId={invoice ?? ""} fromShowId={show ?? ""} />
+      <ReceiptsDashboard
+        fromInvoiceId={invoice ?? ""}
+        fromShowId={show ?? ""}
+        initialViewParam={view ?? ""}
+      />
     </RequireAccess>
   );
 }

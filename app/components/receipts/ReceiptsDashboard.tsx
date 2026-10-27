@@ -13,6 +13,7 @@ import {
   Receipt,
   ReceiptPaymentMode,
   emptyReceipt,
+  invoiceReceiptSummary,
   nextReceiptNumber,
   receiptDate,
   receiptFromInvoice,
@@ -29,14 +30,21 @@ import { ReceiptEditor } from "./ReceiptEditor";
 
 type Open =
   | { kind: "none" }
-  | { kind: "sheet"; receipt: Receipt | null; draft: Omit<Receipt, "id"> };
+  | {
+      kind: "sheet";
+      receipt: Receipt | null;
+      draft: Omit<Receipt, "id">;
+      initialViewMode?: "single" | "sideBySide";
+    };
 
 export function ReceiptsDashboard({
   fromInvoiceId = "",
   fromShowId = "",
+  initialViewParam = "",
 }: {
   fromInvoiceId?: string;
   fromShowId?: string;
+  initialViewParam?: string;
 }) {
   const { can } = useAuth();
   const canCreate = can("receipts", "create");
@@ -45,6 +53,7 @@ export function ReceiptsDashboard({
 
   const [open, setOpen] = useState<Open>({ kind: "none" });
   const [linkHandled, setLinkHandled] = useState(false);
+  const [matchedNotice, setMatchedNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [modeFilter, setModeFilter] = useState<ReceiptPaymentMode | "all">("all");
 
@@ -66,9 +75,63 @@ export function ReceiptsDashboard({
     if (fromInvoiceId) {
       const inv = invoices.find((i) => i.id === fromInvoiceId);
       if (inv) {
-        const matchedShow = shows.find((s) => s.id === inv.showId);
-        const draft = receiptFromInvoice(inv, nextReceiptNumber(receipts), undefined, "bank", matchedShow);
-        setOpen({ kind: "sheet", receipt: null, draft });
+        const summary = invoiceReceiptSummary(inv, receipts);
+        const shouldSideBySide =
+          initialViewParam === "all" ||
+          initialViewParam === "sideBySide" ||
+          summary.receipts.length > 1;
+
+        if (summary.isZeroBalance) {
+          // Balance is 0! The receipt after that will NOT be created!
+          if (summary.receipts.length > 0) {
+            const firstReceipt = summary.receipts[0];
+            setOpen({
+              kind: "sheet",
+              receipt: firstReceipt,
+              draft: { ...firstReceipt },
+              initialViewMode: shouldSideBySide ? "sideBySide" : "single",
+            });
+            setMatchedNotice(
+              summary.receipts.length > 1
+                ? `Invoice ${inv.number} has ${summary.receipts.length} receipts (Balance ₹0). Showing all ${summary.receipts.length} receipts side by side.`
+                : `Invoice ${inv.number} has Balance ₹0 (fully paid). Viewing existing receipt ${firstReceipt.number}. No new receipt can be created.`,
+            );
+          } else {
+            setOpen({ kind: "none" });
+            setMatchedNotice(
+              `Invoice ${inv.number} has Balance ₹0 (already fully paid). A new receipt cannot be created.`,
+            );
+          }
+        } else if (initialViewParam === "all" && summary.receipts.length > 0) {
+          // Explicitly asked to view all existing receipts
+          const firstReceipt = summary.receipts[0];
+          setOpen({
+            kind: "sheet",
+            receipt: firstReceipt,
+            draft: { ...firstReceipt },
+            initialViewMode: "sideBySide",
+          });
+          setMatchedNotice(
+            `Showing all ${summary.receipts.length} existing receipts side by side for Invoice ${inv.number}.`,
+          );
+        } else {
+          // Payment is pending! Generate a receipt for the pending balance:
+          const matchedShow = shows.find((s) => s.id === inv.showId);
+          const draft = receiptFromInvoice(
+            inv,
+            nextReceiptNumber(receipts),
+            undefined,
+            "bank",
+            matchedShow,
+            receipts,
+          );
+          setOpen({ kind: "sheet", receipt: null, draft, initialViewMode: "single" });
+          if (summary.receiptCount > 0) {
+            setMatchedNotice(
+              `Adding Part Payment #${summary.receiptCount + 1} for Invoice ${inv.number} (Remaining pending: ₹${summary.remainingPending.toLocaleString("en-IN")}).`,
+            );
+          }
+        }
         setLinkHandled(true);
       }
     } else if (fromShowId) {
@@ -76,8 +139,36 @@ export function ReceiptsDashboard({
       if (show) {
         const inv = invoices.find((i) => i.showId === fromShowId);
         if (inv) {
-          const draft = receiptFromInvoice(inv, nextReceiptNumber(receipts), undefined, "bank", show);
-          setOpen({ kind: "sheet", receipt: null, draft });
+          const summary = invoiceReceiptSummary(inv, receipts);
+          if (summary.isZeroBalance) {
+            if (summary.receipts.length > 0) {
+              const latestReceipt = summary.receipts[summary.receipts.length - 1];
+              setOpen({
+                kind: "sheet",
+                receipt: latestReceipt,
+                draft: { ...latestReceipt },
+                initialViewMode: summary.receipts.length > 1 ? "sideBySide" : "single",
+              });
+              setMatchedNotice(
+                `Invoice ${inv.number} has Balance ₹0 (fully paid). Viewing existing receipt ${latestReceipt.number}. No new receipt can be created.`,
+              );
+            } else {
+              setOpen({ kind: "none" });
+              setMatchedNotice(
+                `Invoice ${inv.number} has Balance ₹0 (already fully paid). A new receipt cannot be created.`,
+              );
+            }
+          } else {
+            const draft = receiptFromInvoice(
+              inv,
+              nextReceiptNumber(receipts),
+              undefined,
+              "bank",
+              show,
+              receipts,
+            );
+            setOpen({ kind: "sheet", receipt: null, draft });
+          }
         } else {
           const draft: Omit<Receipt, "id"> = {
             ...blank(),
@@ -94,7 +185,7 @@ export function ReceiptsDashboard({
         setLinkHandled(true);
       }
     }
-  }, [ready, fromInvoiceId, fromShowId, invoices, shows, receipts, linkHandled]);
+  }, [ready, fromInvoiceId, fromShowId, initialViewParam, invoices, shows, receipts, linkHandled]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -193,6 +284,19 @@ export function ReceiptsDashboard({
           </div>
         }
       />
+
+      {matchedNotice && (
+        <div className="rounded-lg bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-800 border border-emerald-200 flex items-center justify-between">
+          <span>✓ {matchedNotice}</span>
+          <button
+            type="button"
+            onClick={() => setMatchedNotice(null)}
+            className="text-emerald-600 hover:text-emerald-900 ml-2 font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {!ready ? (
         <div className="card flex h-24 items-center justify-center text-sm text-neutral-500">
@@ -377,10 +481,12 @@ export function ReceiptsDashboard({
         <ReceiptEditor
           receipt={open.receipt}
           draft={open.draft}
+          initialViewMode={open.initialViewMode}
           settings={settings}
           invoices={invoices}
           shows={shows}
           clients={clients}
+          receipts={receipts}
           canEdit={open.receipt ? canEdit : canCreate}
           canDelete={canDelete}
           canCreate={canCreate}

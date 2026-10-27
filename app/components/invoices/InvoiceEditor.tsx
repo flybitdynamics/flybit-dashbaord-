@@ -448,15 +448,29 @@ export function InvoiceEditor({
           )}
         </button>
 
-        {invoice && (
-          <Link
-            href={`/receipts?invoice=${invoice.id}`}
-            className="rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 flex items-center gap-1.5"
-            title="Create a payment receipt for this invoice"
-          >
-            <span>Receipt</span>
-          </Link>
-        )}
+        {invoice && (() => {
+          const isZeroBalance =
+            totals.balance <= 0 ||
+            draft.status === "paid" ||
+            (totals.total > 0 && draft.paymentMade >= totals.total);
+          return (
+            <Link
+              href={`/receipts?invoice=${invoice.id}${isZeroBalance ? "&view=all" : ""}`}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium flex items-center gap-1.5 ${
+                isZeroBalance
+                  ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-semibold"
+                  : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+              }`}
+              title={
+                isZeroBalance
+                  ? "Balance is ₹0. View existing receipt"
+                  : `Pending balance: ₹${totals.balance.toLocaleString("en-IN")}. Click to add receipt`
+              }
+            >
+              <span>{isZeroBalance ? "✓ View Receipt" : "+ Receipt"}</span>
+            </Link>
+          );
+        })()}
 
         {canEdit && (
           <button

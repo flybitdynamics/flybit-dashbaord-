@@ -122,6 +122,7 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
   const shows = useMemo(() => state?.shows ?? [], [state]);
   const clients = useMemo(() => state?.clients ?? [], [state]);
   const payments = useMemo(() => state?.payments ?? [], [state]);
+  const receipts = useMemo(() => state?.receipts ?? [], [state]);
   const settings = state?.settings ?? DEFAULT_SETTINGS;
 
   /* Totals once, for both the tiles and the rows. */
@@ -471,13 +472,75 @@ export function InvoicesDashboard({ fromShowId = "" }: { fromShowId?: string }) 
                             >
                               {canEdit ? "Open" : "Print"}
                             </button>
-                            <Link
-                              href={`/receipts?invoice=${invoice.id}`}
-                              className="rounded-md px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
-                              title="Generate payment receipt for this invoice"
-                            >
-                              Receipt
-                            </Link>
+                            {(() => {
+                              const invReceipts = receipts.filter(
+                                (r) =>
+                                  r.invoiceId === invoice.id ||
+                                  (Boolean(r.invoiceNumber) && r.invoiceNumber.trim() === invoice.number.trim()),
+                              );
+                              const totalPaid = invReceipts.reduce((sum, r) => sum + (r.amountReceived || 0), 0);
+                              const isZeroBalance =
+                                totals.balance <= 0 ||
+                                invoice.status === "paid" ||
+                                (totals.total > 0 && totalPaid >= totals.total);
+
+                              if (isZeroBalance) {
+                                if (invReceipts.length > 0) {
+                                  return (
+                                    <Link
+                                      href={`/receipts?invoice=${invoice.id}${invReceipts.length > 1 ? "&view=all" : ""}`}
+                                      className="rounded-md px-2 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 flex items-center gap-1"
+                                      title={
+                                        invReceipts.length > 1
+                                          ? `Balance is ₹0 (Fully Paid). Click to view all ${invReceipts.length} receipts side by side`
+                                          : "Balance is ₹0 (Fully Paid). Click to view receipt"
+                                      }
+                                    >
+                                      <span>✓ View Receipt</span>
+                                      {invReceipts.length > 1 && (
+                                        <span className="opacity-70 text-[10px]">({invReceipts.length})</span>
+                                      )}
+                                    </Link>
+                                  );
+                                }
+                                return (
+                                  <span
+                                    className="rounded-md px-2 py-1 text-xs font-medium text-neutral-400 bg-neutral-100 select-none cursor-default"
+                                    title="Balance is ₹0. No receipt to create."
+                                  >
+                                    Settled
+                                  </span>
+                                );
+                              }
+
+                              const pending = Math.max(0, totals.balance);
+                              return (
+                                <div className="flex items-center gap-1">
+                                  {invReceipts.length > 0 && (
+                                    <Link
+                                      href={`/receipts?invoice=${invoice.id}&view=all`}
+                                      className="rounded-md px-2 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 flex items-center gap-1"
+                                      title={`View ${invReceipts.length} existing receipt${invReceipts.length > 1 ? "s" : ""} side by side`}
+                                    >
+                                      <span>Receipt</span>
+                                      <span className="opacity-70 text-[10px]">({invReceipts.length})</span>
+                                    </Link>
+                                  )}
+                                  <Link
+                                    href={`/receipts?invoice=${invoice.id}`}
+                                    className="rounded-md px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 flex items-center gap-1"
+                                    title={`Pending balance: ₹${pending.toLocaleString("en-IN")}. Click to add receipt`}
+                                  >
+                                    <span>+ Receipt</span>
+                                    {invReceipts.length > 0 && (
+                                      <span className="text-[10px] text-blue-600 font-mono">
+                                        (Part #{invReceipts.length + 1})
+                                      </span>
+                                    )}
+                                  </Link>
+                                </div>
+                              );
+                            })()}
                             {canCreate && (
                               <button
                                 type="button"

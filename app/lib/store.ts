@@ -635,6 +635,26 @@ export function upsertReceipt(draft: Omit<Receipt, "id">, id: string | null): st
   const previous = id ? receipts.find((r) => r.id === id) : null;
   setDoc(doc(db(), RECEIPTS, receiptId), clean(draft)).catch(fail);
 
+  // Synchronize linked invoice paymentMade and paid status
+  if (draft.invoiceId) {
+    const inv = invoices.find((i) => i.id === draft.invoiceId);
+    if (inv) {
+      const otherReceipts = receipts.filter(
+        (r) => r.invoiceId === draft.invoiceId && r.id !== receiptId,
+      );
+      const totalPaid =
+        otherReceipts.reduce((sum, r) => sum + (r.amountReceived || 0), 0) +
+        (draft.amountReceived || 0);
+      const invTotals = totalsFor(inv);
+      const isPaid = totalPaid >= invTotals.total && invTotals.total > 0;
+      const patch: Partial<Invoice> = {
+        paymentMade: Math.min(invTotals.total, totalPaid),
+        ...(isPaid ? { status: "paid" } : inv.status === "paid" ? { status: "sent" } : {}),
+      };
+      setDoc(doc(db(), INVOICES, inv.id), clean({ ...inv, ...patch })).catch(fail);
+    }
+  }
+
   const who = draft.receivedFrom || "client";
   if (previous) {
     recordActivity(
@@ -659,6 +679,25 @@ export function upsertReceipt(draft: Omit<Receipt, "id">, id: string | null): st
 export function removeReceipt(id: string): void {
   const target = receipts.find((r) => r.id === id);
   deleteDoc(doc(db(), RECEIPTS, id)).catch(fail);
+
+  // Synchronize linked invoice paymentMade and status on deletion
+  if (target?.invoiceId) {
+    const inv = invoices.find((i) => i.id === target.invoiceId);
+    if (inv) {
+      const otherReceipts = receipts.filter(
+        (r) => r.invoiceId === target.invoiceId && r.id !== id,
+      );
+      const totalPaid = otherReceipts.reduce((sum, r) => sum + (r.amountReceived || 0), 0);
+      const invTotals = totalsFor(inv);
+      const isPaid = totalPaid >= invTotals.total && invTotals.total > 0;
+      const patch: Partial<Invoice> = {
+        paymentMade: Math.min(invTotals.total, totalPaid),
+        ...(isPaid ? { status: "paid" } : inv.status === "paid" ? { status: "sent" } : {}),
+      };
+      setDoc(doc(db(), INVOICES, inv.id), clean({ ...inv, ...patch })).catch(fail);
+    }
+  }
+
   recordActivity(
     "delete",
     "payment",
