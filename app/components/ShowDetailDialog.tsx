@@ -240,10 +240,19 @@ export function ShowDetailDialog({
               href={planHref}
               target="_blank"
               rel="noopener"
-              className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
-              title="Plan the drone formation for this show in Maps"
+              className="flex items-center gap-1.5 rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
+              title={
+                show.layout
+                  ? "Open this show's saved layout in Maps"
+                  : "Plan the drone formation for this show in Maps"
+              }
             >
-              Plan layout
+              <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+                <path d="M2.8 5.2 7.4 3l5.2 2.2L17.2 3v11.8l-4.6 2.2-5.2-2.2-4.6 2.2z" />
+                <path d="M7.4 3v11.8M12.6 5.2V17" />
+              </svg>
+              Maps
+              {show.layout && <span className="size-1.5 rounded-full bg-emerald-500" aria-label="layout saved" />}
             </a>
             {canDocuments && (
               <button

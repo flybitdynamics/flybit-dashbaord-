@@ -18,7 +18,7 @@ import {
 /** The whole-show report for management: one PDF with everything about a
  *  booking except invoices and quotations — the show, client, venue, crew,
  *  the DigitalSky airspace check with its map, and the formation planned in
- *  Maps. Money is the show amount alone; the activity log stays out. Built in the
+ *  Maps. No prices or payments, and no activity log. Built in the
  *  browser with jsPDF; images come through /api/report-image. */
 
 export interface ShowReportInput {
@@ -52,7 +52,6 @@ function printable(text: string): string {
     .replace(/[^\n\x20-\xFF–—‘’“”…•×]/g, "?");
 }
 
-const money = (amount: number) => `Rs. ${Math.round(amount || 0).toLocaleString("en-IN")}`;
 const or = (value: string | number | undefined | null, fallback = "—") =>
   value === undefined || value === null || String(value).trim() === "" ? fallback : String(value);
 const stamp = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
@@ -311,7 +310,6 @@ export async function buildShowReport({ show, client, pilots, settings }: ShowRe
     { label: "Show date", value: show.showDate ? formatDate(show.showDate) : "Not fixed yet" },
     { label: "Show time", value: or(time) },
     { label: "Drones", value: show.droneCount ? String(show.droneCount) : "—" },
-    { label: "Show amount", value: show.showAmount ? money(show.showAmount) : "—" },
     { label: "Stage", value: SHOW_STATUSES[show.showStatus] },
     { label: "Booked on", value: show.bookingDate ? formatDate(show.bookingDate) : "—" },
     { label: "Permission", value: PERMISSION_STATUSES[show.permission] },
