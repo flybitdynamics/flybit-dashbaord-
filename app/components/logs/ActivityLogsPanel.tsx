@@ -144,6 +144,7 @@ export function ActivityLogsPanel({ logs }: { logs: AuditLog[] }) {
             <option value="expense">Expenses</option>
             <option value="client">Clients</option>
             <option value="pilot">Pilots</option>
+            <option value="inventory">Inventory</option>
             <option value="user">Users</option>
             <option value="settings">Settings</option>
           </select>

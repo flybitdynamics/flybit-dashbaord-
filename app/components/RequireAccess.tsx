@@ -9,6 +9,7 @@ const HREFS: Partial<Record<Module, string>> = {
   calendar: "/calendar",
   clients: "/clients",
   pilots: "/pilots",
+  inventory: "/inventory",
   quotations: "/quotations",
   invoices: "/invoices",
   receipts: "/receipts",

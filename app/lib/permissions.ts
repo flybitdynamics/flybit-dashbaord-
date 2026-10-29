@@ -19,6 +19,7 @@ export const MODULES = {
   calendar: { label: "Calendar", hint: "Shows by date", actions: ["view"] },
   clients: { label: "Clients", hint: "Direct and B2B clients", actions: ["view", "create", "edit", "delete"] },
   pilots: { label: "Pilots", hint: "Remote pilots and DGCA certificates", actions: ["view", "create", "edit", "delete"] },
+  inventory: { label: "Inventory", hint: "Equipment, quantities and prices", actions: ["view", "create", "edit", "delete"] },
   documents: { label: "Permission documents", hint: "Generate MoCA letters and annexures", actions: ["view"] },
   quotations: { label: "Quotations", hint: "Priced letters sent before a booking", actions: ["view", "create", "edit", "delete"] },
   invoices: { label: "Invoices", hint: "Tax invoices raised against shows", actions: ["view", "create", "edit", "delete"] },
@@ -77,7 +78,7 @@ export const DEFAULT_ROLES: Role[] = [
     name: "Admin",
     description: "Runs the desk day to day — everything except users and roles.",
     permissions: matrix({
-      shows: ALL, calendar: ["view"], clients: ALL, pilots: ALL, documents: ["view"],
+      shows: ALL, calendar: ["view"], clients: ALL, pilots: ALL, inventory: ALL, documents: ["view"],
       quotations: ALL, invoices: ALL, receipts: ALL, finance: ALL, team: ALL, settings: ["view", "edit"],
     }),
   },
@@ -87,7 +88,7 @@ export const DEFAULT_ROLES: Role[] = [
     description: "Takes inquiries, books shows, crews them and files the paperwork. No money.",
     permissions: matrix({
       shows: ["view", "create", "edit"], calendar: ["view"], clients: ["view", "create", "edit"],
-      pilots: ["view", "create", "edit"], documents: ["view"], quotations: ALL, invoices: ["view"], receipts: ["view"],
+      pilots: ["view", "create", "edit"], inventory: ["view", "create", "edit"], documents: ["view"], quotations: ALL, invoices: ["view"], receipts: ["view"],
       team: ["view"], settings: ["view"],
     }),
   },
@@ -96,7 +97,7 @@ export const DEFAULT_ROLES: Role[] = [
     name: "Accounts",
     description: "Payments, expenses and payroll. Can read shows, cannot change them.",
     permissions: matrix({
-      shows: ["view"], calendar: ["view"], clients: ["view"], quotations: ALL, invoices: ALL, receipts: ALL, finance: ALL,
+      shows: ["view"], calendar: ["view"], clients: ["view"], inventory: ["view"], quotations: ALL, invoices: ALL, receipts: ALL, finance: ALL,
       team: ["view", "edit"], settings: ["view"],
     }),
   },
@@ -111,7 +112,7 @@ export const DEFAULT_ROLES: Role[] = [
     name: "Viewer",
     description: "Can look at everything, change nothing.",
     permissions: matrix({
-      shows: ["view"], calendar: ["view"], clients: ["view"], pilots: ["view"],
+      shows: ["view"], calendar: ["view"], clients: ["view"], pilots: ["view"], inventory: ["view"],
       documents: ["view"], quotations: ["view"], invoices: ["view"], receipts: ["view"], finance: ["view"],
       team: ["view"], settings: ["view"],
     }),

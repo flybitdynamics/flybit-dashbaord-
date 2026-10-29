@@ -189,7 +189,7 @@ export interface AuditLog {
   actorName: string;
   actorEmail: string;
   action: LogAction;
-  entityType: "show" | "client" | "pilot" | "payment" | "expense" | "invoice" | "quotation" | "user" | "settings";
+  entityType: "show" | "client" | "pilot" | "payment" | "expense" | "invoice" | "quotation" | "inventory" | "user" | "settings";
   entityId: string;
   entityTitle: string;
   details: string;

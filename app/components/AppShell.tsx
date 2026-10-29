@@ -70,6 +70,16 @@ const NAV = [
     ),
   },
   {
+    href: "/inventory",
+    label: "Inventory",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <path d="M10 2.8 16.8 6.4v7.2L10 17.2 3.2 13.6V6.4z" />
+        <path d="M3.2 6.4 10 10l6.8-3.6M10 10v7.2M6.6 4.6l6.8 3.6" />
+      </svg>
+    ),
+  },
+  {
     href: "/quotations",
     label: "Quotations",
     icon: (
@@ -166,6 +176,7 @@ const MODULE_OF: Record<string, Module | null> = {
   "/calendar": "calendar",
   "/clients": "clients",
   "/pilots": "pilots",
+  "/inventory": "inventory",
   "/quotations": "quotations",
   "/invoices": "invoices",
   "/receipts": "receipts",

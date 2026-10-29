@@ -123,6 +123,14 @@ service cloud.firestore {
       allow delete: if can("pilots", "delete");
     }
 
+    // Equipment with quantities and prices.
+    match /inventory/{id} {
+      allow read: if can("inventory", "view");
+      allow create: if can("inventory", "create");
+      allow update: if can("inventory", "edit");
+      allow delete: if can("inventory", "delete");
+    }
+
     // Remembered automatically whenever a show or client is saved.
     match /places/{id} {
       allow read: if active();
