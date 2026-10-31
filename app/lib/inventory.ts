@@ -26,8 +26,12 @@ export interface InventoryItem {
   unitPrice: number;
   /** Warn when the quantity falls to this or below; 0 means never. */
   reorderAt: number;
-  /** Where it is kept: office, warehouse, a show site. */
-  location: string;
+  /** Where it was bought: a shop, a marketplace, an importer. */
+  boughtFrom: string;
+  /** The product or shop page, when it was bought online. */
+  website: string;
+  vendorName: string;
+  vendorPhone: string;
   notes: string;
   /** Each piece listed by UIN. When there are any, the quantity is their count. */
   units: InventoryUnit[];
@@ -56,7 +60,10 @@ export function emptyInventoryItem(): Omit<InventoryItem, "id"> {
     unit: "pcs",
     unitPrice: 0,
     reorderAt: 0,
-    location: "",
+    boughtFrom: "",
+    website: "",
+    vendorName: "",
+    vendorPhone: "",
     notes: "",
     units: [],
     updatedAt: "",
@@ -72,6 +79,11 @@ export function unitCounts(units: InventoryUnit[]): Record<UnitStatus, number> {
   const counts: Record<UnitStatus, number> = { active: 0, inactive: 0, repair: 0 };
   for (const unit of units) counts[unit.status] += 1;
   return counts;
+}
+
+/** A link that opens outside the desk, even if typed without https://. */
+export function websiteHref(website: string): string {
+  return /^https?:\/\//i.test(website) ? website : `https://${website}`;
 }
 
 /** Quantity × unit price. */

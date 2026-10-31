@@ -8,7 +8,7 @@ import {
   subscribe,
   upsertInventoryItem,
 } from "../../lib/inventory-store";
-import { InventoryItem, UNIT_STATUSES, isLowStock, itemValue, unitCounts } from "../../lib/inventory";
+import { InventoryItem, UNIT_STATUSES, isLowStock, itemValue, unitCounts, websiteHref } from "../../lib/inventory";
 import { formatCompactMoney, formatMoney, formatNumber } from "../../lib/types";
 import { useAuth } from "../AuthProvider";
 import { SiteHeader } from "../SiteHeader";
@@ -22,13 +22,13 @@ const updated = new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short
 function downloadCsv(rows: InventoryItem[]) {
   const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   const lines = [
-    ["Item", "Category", "Quantity", "Unit", "Active", "Inactive", "Under repair", "Price per unit", "Total value", "Location", "UINs", "Notes"],
+    ["Item", "Category", "Quantity", "Unit", "Active", "Inactive", "Under repair", "Price per unit", "Total value", "Bought from", "Website", "Vendor name", "Vendor number", "UINs", "Notes"],
     ...rows.map((i) => {
       const counts = unitCounts(i.units);
       return [
         i.name, i.category, i.quantity, i.unit,
         i.units.length ? counts.active : "", i.units.length ? counts.inactive : "", i.units.length ? counts.repair : "",
-        i.unitPrice, itemValue(i), i.location,
+        i.unitPrice, itemValue(i), i.boughtFrom, i.website, i.vendorName, i.vendorPhone,
         i.units.map((u) => `${u.uin} (${UNIT_STATUSES[u.status]})`).join("; "), i.notes,
       ];
     }),
@@ -76,7 +76,7 @@ export function InventoryDashboard() {
       if (category !== "all" && i.category !== category) return false;
       if (lowOnly && !isLowStock(i)) return false;
       if (!q) return true;
-      return [i.name, i.category, i.location, i.notes, ...i.units.map((u) => u.uin)].some((v) =>
+      return [i.name, i.category, i.boughtFrom, i.website, i.vendorName, i.vendorPhone, i.notes, ...i.units.map((u) => u.uin)].some((v) =>
         v.toLowerCase().includes(q),
       );
     });
@@ -172,7 +172,7 @@ export function InventoryDashboard() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search item, UIN, category, location or notes"
+              placeholder="Search item, UIN, category, vendor or notes"
               aria-label="Search inventory"
               className="min-w-52 flex-1 rounded-md bg-white px-3 py-2 text-sm ring-1 ring-neutral-200 outline-none placeholder:text-neutral-400 focus-visible:ring-2 focus-visible:ring-neutral-900"
             />
@@ -203,10 +203,10 @@ export function InventoryDashboard() {
 
           <div className="card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse text-left">
+              <table className="w-full min-w-[1040px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-neutral-100 bg-neutral-50/70">
-                    {["Item name", "Category", "Quantity", "Price per unit", "Total value", "Location", "Updated", ""].map(
+                    {["Item name", "Category", "Quantity", "Price per unit", "Total value", "Bought from", "Vendor", "Updated", ""].map(
                       (h, k) => (
                         <th
                           key={h || k}
@@ -223,7 +223,7 @@ export function InventoryDashboard() {
                 <tbody>
                   {visible.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-12 text-center">
+                      <td colSpan={9} className="px-4 py-12 text-center">
                         <p className="font-medium text-neutral-900">
                           {items.length === 0 ? "No equipment yet" : "Nothing matches"}
                         </p>
@@ -283,7 +283,30 @@ export function InventoryDashboard() {
                           <td className="tnum px-3 py-2.5 text-right font-mono text-sm font-semibold text-neutral-900">
                             {itemValue(item) ? formatMoney(itemValue(item)) : "—"}
                           </td>
-                          <td className="px-3 py-2.5 text-sm text-neutral-700">{item.location || "—"}</td>
+                          <td className="px-3 py-2.5 text-sm text-neutral-700" onClick={(e) => e.stopPropagation()}>
+                            <div>{item.boughtFrom || (item.website ? "" : "—")}</div>
+                            {item.website && (
+                              <a
+                                href={websiteHref(item.website)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block max-w-[11rem] truncate text-xs text-blue-600 hover:underline"
+                              >
+                                {item.website.replace(/^https?:\/\//i, "")}
+                              </a>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-sm text-neutral-700" onClick={(e) => e.stopPropagation()}>
+                            <div>{item.vendorName || (item.vendorPhone ? "" : "—")}</div>
+                            {item.vendorPhone && (
+                              <a
+                                href={`tel:${item.vendorPhone.replace(/[^\d+]/g, "")}`}
+                                className="tnum font-mono text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
+                              >
+                                {item.vendorPhone}
+                              </a>
+                            )}
+                          </td>
                           <td className="tnum whitespace-nowrap px-3 py-2.5 font-mono text-xs text-neutral-500">
                             {item.updatedAt ? updated.format(new Date(item.updatedAt)) : "—"}
                           </td>
@@ -301,7 +324,7 @@ export function InventoryDashboard() {
                         </tr>
                         {expanded && (
                           <tr className="bg-neutral-50/60">
-                            <td colSpan={8} className="px-3 pb-3 pt-1">
+                            <td colSpan={9} className="px-3 pb-3 pt-1">
                               <div className="flex flex-wrap gap-1.5">
                                 {item.units.map((unit) => (
                                   <span
@@ -350,7 +373,7 @@ export function InventoryDashboard() {
                       <td className="tnum px-3 py-2.5 text-right font-mono font-semibold text-neutral-900">
                         {formatMoney(visibleValue)}
                       </td>
-                      <td colSpan={3} />
+                      <td colSpan={4} />
                     </tr>
                   </tfoot>
                 )}

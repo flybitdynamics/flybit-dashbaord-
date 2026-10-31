@@ -184,13 +184,13 @@ export function InventoryDialog({
           </datalist>
         </Field>
 
-        <Field label="Location" htmlFor="i-location" hint="Where it is kept.">
+        <Field label="Bought from" htmlFor="i-bought" hint="The shop, marketplace or importer.">
           <input
-            id="i-location"
+            id="i-bought"
             className={inputClass}
-            value={draft.location}
-            onChange={(e) => set("location", e.target.value)}
-            placeholder="Ahmedabad office"
+            value={draft.boughtFrom}
+            onChange={(e) => set("boughtFrom", e.target.value)}
+            placeholder="Amazon, local shop, importer"
           />
         </Field>
 
@@ -250,7 +250,38 @@ export function InventoryDialog({
           />
         </Field>
 
-        <div />
+        <Field label="Website" htmlFor="i-website" hint="If it was bought online.">
+          <input
+            id="i-website"
+            type="text"
+            inputMode="url"
+            className={inputClass}
+            value={draft.website}
+            onChange={(e) => set("website", e.target.value)}
+            placeholder="www.example.com/product"
+          />
+        </Field>
+
+        <Field label="Vendor name" htmlFor="i-vendor">
+          <input
+            id="i-vendor"
+            className={inputClass}
+            value={draft.vendorName}
+            onChange={(e) => set("vendorName", e.target.value)}
+            placeholder="Person or company you dealt with"
+          />
+        </Field>
+
+        <Field label="Vendor number" htmlFor="i-vendor-phone">
+          <input
+            id="i-vendor-phone"
+            type="tel"
+            className={inputClass}
+            value={draft.vendorPhone}
+            onChange={(e) => set("vendorPhone", e.target.value)}
+            placeholder="98250 00114"
+          />
+        </Field>
 
         <section className="flex flex-col gap-2 rounded-xl bg-neutral-50 p-3 ring-1 ring-neutral-200 sm:col-span-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -372,7 +403,7 @@ export function InventoryDialog({
             className={`${inputClass} resize-y`}
             value={draft.notes}
             onChange={(e) => set("notes", e.target.value)}
-            placeholder="Model, serial numbers, supplier, warranty"
+            placeholder="Model, serial numbers, warranty"
           />
         </Field>
       </form>

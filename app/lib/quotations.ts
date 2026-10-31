@@ -51,12 +51,31 @@ export interface Quotation {
   paymentTerms: string[];
   benefits: string[];
   confidential: string;
+  /** Ids from QUOTATION_ATTACHMENTS, printed after page two. */
+  attachments: string[];
   /** Optional links back into the desk. */
   showId: string;
   clientId: string;
   createdAt: string;
   /** Stamped on every save; older quotations fall back to the activity log. */
   updatedAt?: string;
+}
+
+/** The company's terms documents, which can be added to the end of a
+ *  quotation. Their pages are SVGs in public/quotation-attachments, made from
+ *  the PDFs with pdftocairo, so they stay sharp in the Print / PDF output.
+ *  To change a document, regenerate its pages there. */
+export const QUOTATION_ATTACHMENTS = [
+  { id: "corporate", label: "Corporate event terms", pages: 2 },
+  { id: "private", label: "Direct customer / private event terms", pages: 2 },
+  { id: "agency", label: "Event company terms", pages: 3 },
+];
+
+/** The chosen documents' pages, in their fixed order. */
+export function attachmentPages(attachments: string[]): string[] {
+  return QUOTATION_ATTACHMENTS.filter((a) => attachments.includes(a.id)).flatMap((a) =>
+    Array.from({ length: a.pages }, (_, k) => `/quotation-attachments/${a.id}-${k + 1}.svg`),
+  );
 }
 
 export const QUOTATION_PREFIX = "FD";
@@ -112,6 +131,7 @@ export function emptyQuotation(number: string): Omit<Quotation, "id"> {
     paymentTerms: [...DEFAULT_PAYMENT_TERMS],
     benefits: [...DEFAULT_BENEFITS],
     confidential: DEFAULT_CONFIDENTIAL,
+    attachments: [],
     showId: "",
     clientId: "",
     createdAt: new Date().toISOString(),
@@ -137,6 +157,7 @@ export function normalizeQuotation(id: string, raw: Record<string, unknown>): Qu
         : [emptyRow("row-1", "1")],
     paymentTerms: list(raw.paymentTerms, base.paymentTerms),
     benefits: list(raw.benefits, base.benefits),
+    attachments: list(raw.attachments, []),
   };
 }
 

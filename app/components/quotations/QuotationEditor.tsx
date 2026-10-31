@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  QUOTATION_ATTACHMENTS,
   QUOTATION_STATUSES,
   Quotation,
   QuotationRow,
   QuotationStatus,
+  attachmentPages,
   emptyRow,
   quotationFromShow,
   quotationPdfName,
@@ -17,6 +19,8 @@ import { QuotationSheet } from "./QuotationSheet";
 /** A4 at 96dpi — what one page measures on screen. */
 const PAGE_W = 794;
 const PAGE_H = 1123;
+/** A printed quotation page and the gap above it, as .q-page lays them out. */
+const SHEET_PAGE_H = 1056 + 21;
 
 function fitToWindow(): number {
   if (typeof window === "undefined") return 1;
@@ -73,6 +77,13 @@ export function QuotationEditor({
     setProblem(null);
   }
 
+  function toggleAttachment(id: string) {
+    const attachments = draft.attachments.includes(id)
+      ? draft.attachments.filter((a) => a !== id)
+      : [...draft.attachments, id];
+    change({ attachments });
+  }
+
   function changeRow(id: string, patch: Partial<QuotationRow>) {
     change({ rows: draft.rows.map((row) => (row.id === id ? { ...row, ...patch } : row)) });
   }
@@ -106,7 +117,10 @@ export function QuotationEditor({
   }
 
   /** The print dialog names the PDF from the page title. */
-  function printPdf() {
+  async function printPdf() {
+    // The attached pages must have loaded, or they print blank.
+    const pages = document.querySelectorAll<HTMLImageElement>(".q-page-attachment img");
+    await Promise.all([...pages].map((img) => img.decode().catch(() => undefined)));
     const client = clients.find((c) => c.id === draft.clientId);
     const previous = document.title;
     document.title = quotationPdfName(draft, client?.name);
@@ -247,7 +261,7 @@ export function QuotationEditor({
           </button>
         )}
 
-        <button type="button" onClick={printPdf} className={bar}>
+        <button type="button" onClick={() => void printPdf()} className={bar}>
           Print / PDF
         </button>
 
@@ -262,6 +276,27 @@ export function QuotationEditor({
         )}
       </div>
 
+      <div className="inv-noprint flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+          Attach at the end
+        </span>
+        {QUOTATION_ATTACHMENTS.map((attachment) => (
+          <label key={attachment.id} className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={draft.attachments.includes(attachment.id)}
+              disabled={!canEdit}
+              onChange={() => toggleAttachment(attachment.id)}
+              className="size-4 accent-neutral-900"
+            />
+            {attachment.label}
+            <span className="text-xs text-neutral-400">
+              {attachment.pages} pages
+            </span>
+          </label>
+        ))}
+      </div>
+
       {problem && (
         <div className="inv-noprint border-b border-neutral-200 bg-white px-4 py-2 text-xs font-medium text-red-700">
           {problem}
@@ -271,7 +306,7 @@ export function QuotationEditor({
       <div className="print-host flex-1 overflow-auto p-4 sm:p-8">
         <div
           className="inv-zoom-wrap mx-auto"
-          style={{ width: PAGE_W * zoom, height: (PAGE_H * 2 + 22) * zoom }}
+          style={{ width: PAGE_W * zoom, height: (PAGE_H * 2 + 22 + attachmentPages(draft.attachments).length * SHEET_PAGE_H) * zoom }}
         >
           <div
             className="inv-zoom"

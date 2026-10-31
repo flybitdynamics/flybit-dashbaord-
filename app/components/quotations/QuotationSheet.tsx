@@ -10,7 +10,7 @@
 
 import Image from "next/image";
 import { Settings } from "../../lib/types";
-import { Quotation, QuotationRow } from "../../lib/quotations";
+import { Quotation, QuotationRow, attachmentPages } from "../../lib/quotations";
 import { GrowSlot, LongDateSlot, Slot } from "../sheet/Fields";
 
 export interface QuotationEdit {
@@ -388,6 +388,14 @@ export function QuotationSheet({
 
         <Footer settings={settings} />
       </div>
+
+      {/* ---------------- attached terms documents ---------------- */}
+      {attachmentPages(quotation.attachments).map((src) => (
+        <div key={src} className="q-page q-page-two q-page-attachment">
+          {/* eslint-disable-next-line @next/next/no-img-element -- printed at full size, not optimised */}
+          <img src={src} alt="" />
+        </div>
+      ))}
     </div>
   );
 }

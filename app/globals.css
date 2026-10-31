@@ -103,6 +103,18 @@ body {
   color: #666;
 }
 
+/* An attached terms document: its A4 page fitted into the same box. */
+.q-page.q-page-attachment {
+  padding: 0;
+}
+
+.q-page-attachment img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: top center;
+}
+
 /* ---- letterhead ---- */
 
 .inv-head {
