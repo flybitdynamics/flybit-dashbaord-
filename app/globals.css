@@ -516,8 +516,27 @@ textarea.inv-edit {
   width: 52pt;
 }
 
-.inv-edit-gstin {
-  width: 72pt;
+/* A one-line field as wide as its words: the hidden copy of the text sets the
+   width, so the box grows as you type and the text never scrolls inside it. */
+.inv-fit {
+  display: inline-grid;
+  max-width: 100%;
+  min-width: 6ch;
+  vertical-align: baseline;
+}
+
+.inv-fit::after {
+  content: attr(data-value) "  ";
+  grid-area: 1 / 1;
+  padding: 0 1pt;
+  white-space: pre;
+  visibility: hidden;
+  overflow: hidden;
+}
+
+.inv-fit>.inv-edit {
+  grid-area: 1 / 1;
+  margin: 0;
 }
 
 .inv-edit-total {

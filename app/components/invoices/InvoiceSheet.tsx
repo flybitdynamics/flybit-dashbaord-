@@ -11,7 +11,7 @@
  *  box of their own, so nothing moves between editing and paper. */
 
 import Image from "next/image";
-import { DateSlot, GrowSlot, MoneySlot, Slot } from "../sheet/Fields";
+import { DateSlot, FitSlot, GrowSlot, MoneySlot, Slot } from "../sheet/Fields";
 import { Client, Settings } from "../../lib/types";
 import {
   Invoice,
@@ -220,11 +220,10 @@ export function InvoiceSheet({
             {(on || invoice.billTo.gstin) && (
               <div>
                 GSTIN{" "}
-                <Slot
+                <FitSlot
                   value={invoice.billTo.gstin}
                   edit={on}
                   onChange={(gstin) => party("billTo", { gstin })}
-                  className="inv-edit-gstin"
                   placeholder="—"
                 />
               </div>

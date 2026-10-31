@@ -38,6 +38,32 @@ export function Slot({
   );
 }
 
+/** A single-line value whose box grows with the text as you type. */
+export function FitSlot({
+  value,
+  edit,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  edit: boolean;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+}) {
+  if (!edit || !onChange) return <>{value}</>;
+  return (
+    <span className="inv-fit" data-value={value}>
+      <input
+        size={1}
+        className="inv-edit"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </span>
+  );
+}
+
 /** A value that may wrap or run to several lines. The wrapper sizes itself
  *  from the same text, so the box is always exactly as tall as the words. */
 export function GrowSlot({
