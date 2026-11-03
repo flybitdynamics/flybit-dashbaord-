@@ -11,10 +11,12 @@ import { INDIAN_STATES, Show, ShowStatus, Zone, emptyShow, todayISO } from "./ty
 export interface ImportColumns {
   /** Index into the row's cells, or -1 when the sheet has no such column. */
   name: number;
+  phone: number;
   purpose: number;
   place: number;
   drones: number;
   result: number;
+  showDate: number;
   /** Everything else is kept as notes. */
   notes: number[];
 }
@@ -36,10 +38,12 @@ const clean = (value: string) => value.replace(/\s+/g, " ").trim();
 
 const HEADERS: Array<[keyof Omit<ImportColumns, "notes">, RegExp]> = [
   ["name", /\bname\b|client|party/i],
+  ["phone", /phone|mobile/i],
   ["purpose", /purpose|occasion|event type/i],
   ["place", /city|state|place|location/i],
   ["drones", /drone|qty|quantity/i],
   ["result", /result|status|stage/i],
+  ["showDate", /show date|event date/i],
 ];
 
 /** Finds the header row and what each column holds. */
@@ -54,14 +58,14 @@ export function readColumns(rows: string[][]): { columns: ImportColumns; headerA
     }
   });
 
-  const columns: ImportColumns = { name: -1, purpose: -1, place: -1, drones: -1, result: -1, notes: [] };
+  const columns: ImportColumns = { name: -1, phone: -1, purpose: -1, place: -1, drones: -1, result: -1, showDate: -1, notes: [] };
   if (headerAt < 0) return { columns, headerAt };
 
   const header = rows[headerAt];
   for (const [key, test] of HEADERS) {
     columns[key] = header.findIndex((cell) => test.test(cell));
   }
-  const taken = [columns.name, columns.purpose, columns.place, columns.drones, columns.result];
+  const taken = [columns.name, columns.phone, columns.purpose, columns.place, columns.drones, columns.result, columns.showDate];
   const serial = serialColumn(rows, headerAt);
   columns.notes = header
     .map((_, index) => index)
@@ -94,7 +98,7 @@ function serialColumn(rows: string[][], headerAt: number): number {
 export function statusFrom(result: string): ShowStatus {
   const text = result.toLowerCase();
   if (/cancel/.test(text)) return "cancelled";
-  if (/\bgone\b|no budget|not interest|fail|decline/.test(text)) return "lost";
+  if (/\bgone\b|\blost\b|no budget|not interest|fail|decline/.test(text)) return "lost";
   if (/confirm|book|advance|token/.test(text)) return "confirmed";
   if (/done|complete|flown/.test(text)) return "completed";
   return "inquiry";
@@ -126,6 +130,9 @@ export function amountFrom(text: string): number {
     if (value >= 10_000) return value;
   }
 
+  // A plain rupee figure, as 500000 in a Quoted column.
+  if (/^\d{6,7}$/.test(cell)) return Number(cell);
+
   const alone = cell.match(/^(\d{1,2}(?:\.\d+)?)$/);
   if (alone && Number(alone[1]) <= 50) return Math.round(Number(alone[1]) * 100_000);
 
@@ -140,6 +147,35 @@ function amountAcross(cells: string[]): number {
     if (value) return value;
   }
   return 0;
+}
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+/** A show date however Excel hands it over: 2027-01-25, 25/01/2027, 25-Jan-27,
+ *  25 January 2027, or a file's day number such as 46412. Anything else is
+ *  not a date we can trust, so it comes back empty. */
+export function dateFrom(text: string): string {
+  const cell = clean(text);
+  if (!cell) return "";
+  const iso = (year: number, month: number, day: number) => {
+    const full = year < 100 ? 2000 + year : year;
+    const date = new Date(Date.UTC(full, month - 1, day));
+    return date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+      ? date.toISOString().slice(0, 10)
+      : "";
+  };
+
+  if (/^\d{5}$/.test(cell)) {
+    const days = Number(cell);
+    return days > 40_000 && days < 60_000 ? new Date(Date.UTC(1899, 11, 30 + days)).toISOString().slice(0, 10) : "";
+  }
+  const ymd = cell.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (ymd) return iso(Number(ymd[1]), Number(ymd[2]), Number(ymd[3]));
+  const dmy = cell.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/);
+  if (dmy) return iso(Number(dmy[3]), Number(dmy[2]), Number(dmy[1]));
+  const named = cell.match(/^(\d{1,2})(?:st|nd|rd|th)?[\s-]+([a-z]{3})[a-z]*[\s,-]+(\d{2}|\d{4})$/i);
+  const month = named ? MONTHS.indexOf(named[2].toLowerCase()) : -1;
+  return named && month >= 0 ? iso(Number(named[3]), month + 1, Number(named[1])) : "";
 }
 
 export function zoneFrom(text: string): Zone {
@@ -202,7 +238,7 @@ export function toDraft(cells: string[], columns: ImportColumns): Omit<Show, "id
     ...emptyShow(),
     showStatus: statusFrom(result),
     client: PHONE.test(name) ? "" : title(name),
-    contactPhone: PHONE.test(name) ? name : "",
+    contactPhone: at(columns.phone) || (PHONE.test(name) ? name : ""),
     state,
     location,
     area,
@@ -210,7 +246,7 @@ export function toDraft(cells: string[], columns: ImportColumns): Omit<Show, "id
     droneCount: dronesFrom(at(columns.drones)),
     showAmount: amountAcross(extra),
     bookingDate: todayISO(),
-    showDate: "",
+    showDate: dateFrom(at(columns.showDate)),
     notes,
   };
 }

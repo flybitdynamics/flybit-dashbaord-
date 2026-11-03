@@ -3,13 +3,16 @@
 import { useMemo } from "react";
 import Image from "next/image";
 import { Client, Settings } from "../../lib/types";
-import { Invoice } from "../../lib/invoices";
+import { Invoice, totalsFor } from "../../lib/invoices";
 import {
   RECEIPT_PAYMENT_MODES,
   Receipt,
   ReceiptPaymentMode,
+  TDS_DEFAULT_RATE,
   receiptAmountInWords,
   receiptDate,
+  settledBy,
+  tdsOn,
 } from "../../lib/receipts";
 import { DateSlot, GrowSlot, MoneySlot, Slot } from "../sheet/Fields";
 
@@ -117,15 +120,48 @@ export function ReceiptSheet({
     if (!receipt.invoiceId || !edit?.receipts) return 0;
     return edit.receipts
       .filter((r) => r.invoiceId === receipt.invoiceId && r.number !== receipt.number)
-      .reduce((sum, r) => sum + (r.amountReceived || 0), 0);
+      .reduce((sum, r) => sum + settledBy(r), 0);
   }, [receipt.invoiceId, receipt.number, edit?.receipts]);
+
+  const tds = receipt.tdsAmount || 0;
+
+  /** TDS is taken on the amount before GST: the linked invoice's taxable
+   *  value, or the amount due when there is no invoice to read it from. */
+  const tdsBase = useMemo(() => {
+    const invoice = edit?.invoices.find((i) => i.id === receipt.invoiceId);
+    return invoice ? totalsFor(invoice).subTotal : receipt.totalAmountDue || 0;
+  }, [edit?.invoices, receipt.invoiceId, receipt.totalAmountDue]);
 
   // Auto-calculate balance when total or received changes
   function handleTotalChange(total: number) {
     if (!edit) return;
     edit.onChange({
       totalAmountDue: total,
-      balanceDue: Math.max(0, total - priorReceived - (receipt.amountReceived || 0)),
+      balanceDue: Math.max(0, total - priorReceived - (receipt.amountReceived || 0) - tds),
+    });
+  }
+
+  function handleTdsChange(next: number) {
+    if (!edit) return;
+    edit.onChange({
+      tdsAmount: next,
+      tdsRate: 0,
+      balanceDue: Math.max(0, (receipt.totalAmountDue || 0) - priorReceived - (receipt.amountReceived || 0) - next),
+    });
+  }
+
+  /** The client paid the rest less 10% TDS: TDS goes on, and a receipt that
+   *  was clearing the balance now shows what actually came in. */
+  function applyTds() {
+    if (!edit) return;
+    const next = tdsOn(tdsBase, TDS_DEFAULT_RATE);
+    const due = Math.max(0, (receipt.totalAmountDue || 0) - priorReceived);
+    const received = (receipt.amountReceived || 0) + tds >= due ? Math.max(0, due - next) : receipt.amountReceived || 0;
+    edit.onChange({
+      tdsAmount: next,
+      tdsRate: TDS_DEFAULT_RATE,
+      amountReceived: received,
+      balanceDue: Math.max(0, due - received - next),
     });
   }
 
@@ -133,7 +169,7 @@ export function ReceiptSheet({
     if (!edit) return;
     edit.onChange({
       amountReceived: received,
-      balanceDue: Math.max(0, (receipt.totalAmountDue || 0) - priorReceived - received),
+      balanceDue: Math.max(0, (receipt.totalAmountDue || 0) - priorReceived - received - tds),
     });
   }
 
@@ -386,6 +422,34 @@ export function ReceiptSheet({
                         </div>
                       </td>
                     </tr>
+                    {(on || tds > 0) && (
+                      <tr className="border-b border-[#d1d5db]">
+                        <td className="px-3 py-1.5 font-semibold text-[#374151] border-r border-[#d1d5db]">
+                          TDS deducted{receipt.tdsRate ? ` (${receipt.tdsRate}%)` : ""}
+                          {on && (
+                            <button
+                              type="button"
+                              onClick={applyTds}
+                              title={`${TDS_DEFAULT_RATE}% of ₹${tdsBase.toLocaleString("en-IN")}, the amount before GST`}
+                              className="inv-noprint ml-2 rounded border border-[#d1d5db] bg-white px-1.5 text-[8pt] font-medium text-[#374151] hover:bg-[#f3f4f6]"
+                            >
+                              {TDS_DEFAULT_RATE}%
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono font-medium text-[#111827]">
+                          <div className="flex items-baseline justify-end gap-1">
+                            <span className="select-none">₹</span>
+                            <MoneySlot
+                              value={tds}
+                              edit={on}
+                              onChange={handleTdsChange}
+                              className="!w-24 text-right"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                     <tr className="bg-[#f9fafb]">
                       <td className="px-3 py-1.5 font-bold text-[#1f2937] border-r border-[#d1d5db]">
                         Balance Due
@@ -398,7 +462,7 @@ export function ReceiptSheet({
                               0,
                               receipt.balanceDue !== undefined
                                 ? receipt.balanceDue
-                                : (receipt.totalAmountDue || 0) - priorReceived - (receipt.amountReceived || 0),
+                                : (receipt.totalAmountDue || 0) - priorReceived - (receipt.amountReceived || 0) - tds,
                             ).toLocaleString("en-IN")}
                           </span>
                         </div>
@@ -409,7 +473,7 @@ export function ReceiptSheet({
 
                 {priorReceived > 0 && (
                   <div className="mt-1 text-[8pt] text-[#6b7280] italic text-right">
-                    * ₹{priorReceived.toLocaleString("en-IN")} received in prior receipt(s)
+                    * ₹{priorReceived.toLocaleString("en-IN")} received (with TDS) in prior receipt(s)
                   </div>
                 )}
 

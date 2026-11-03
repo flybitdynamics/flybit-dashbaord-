@@ -11,6 +11,7 @@ import {
   ReceiptPaymentMode,
   invoiceReceiptSummary,
   receiptFromInvoice,
+  settledBy,
 } from "../../lib/receipts";
 import { Invoice, totalsFor } from "../../lib/invoices";
 import { ReceiptSheet } from "./ReceiptSheet";
@@ -114,7 +115,7 @@ export function ReceiptEditor({
     );
     if (!inv) return null;
     const totals = totalsFor(inv);
-    const totalPaid = siblingReceipts.reduce((sum, r) => sum + (r.amountReceived || 0), 0);
+    const totalPaid = siblingReceipts.reduce((sum, r) => sum + settledBy(r), 0);
     const balance = Math.max(0, totals.total - totalPaid);
     return {
       invoice: inv,

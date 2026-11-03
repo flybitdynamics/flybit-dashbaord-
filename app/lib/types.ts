@@ -10,6 +10,23 @@ export type ClientType = "direct" | "b2b";
 export type PilotStatus = "active" | "inactive";
 
 /** One booking, from first inquiry to the day it is closed. */
+/** A note to come back to a show at a set time. */
+export interface ShowReminder {
+  id: string;
+  /** When it is due, as an ISO timestamp. */
+  at: string;
+  note: string;
+  /** Ticked off: it no longer pops up for anyone. */
+  done: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
+/** Reminders on a show that are not done, soonest first. */
+export function openReminders(show: Pick<Show, "reminders">): ShowReminder[] {
+  return (show.reminders ?? []).filter((r) => !r.done).sort((a, b) => a.at.localeCompare(b.at));
+}
+
 export interface Show {
   id: string;
   showStatus: ShowStatus;
@@ -35,6 +52,10 @@ export interface Show {
   zoneCheck?: ZoneCheck;
   /** The formation planned for this show in Maps (AeroGrid), if saved. */
   layout?: ShowLayout;
+  /** Follow-ups set on the show; each one pops up in the desk when due. */
+  reminders?: ShowReminder[];
+  /** The show's own folder in Google Drive, once files have been uploaded. */
+  driveFolder?: { id: string; url: string };
   /** Stamped on every save; older shows fall back to the activity log. */
   updatedAt?: string;
 

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Module } from "../lib/permissions";
 import { useAuth } from "./AuthProvider";
+import { ReminderAlerts } from "./ReminderAlerts";
 
 const COLLAPSE_KEY = "flybit_sidebar_collapsed";
 
@@ -80,7 +81,21 @@ const NAV = [
     ),
   },
   {
+    href: "/finance",
+    label: "Finance",
+    group: "finance",
+    /** Its name inside the Finance group. */
+    subLabel: "Overview",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <path d="M3 15.2 7.2 10l3.1 3.1L17 6" />
+        <path d="M17 10V6h-4" />
+      </svg>
+    ),
+  },
+  {
     href: "/quotations",
+    group: "finance",
     label: "Quotations",
     icon: (
       <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
@@ -91,6 +106,7 @@ const NAV = [
   },
   {
     href: "/invoices",
+    group: "finance",
     label: "Invoices",
     icon: (
       <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
@@ -101,21 +117,12 @@ const NAV = [
   },
   {
     href: "/receipts",
+    group: "finance",
     label: "Receipts",
     icon: (
       <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
         <path d="M4.5 2.8h11v14.4l-2.75-1.5-2.75 1.5-2.75-1.5L4.5 17.2z" />
         <path d="M7.5 7h5M7.5 10.5h5M7.5 13.5h3" />
-      </svg>
-    ),
-  },
-  {
-    href: "/finance",
-    label: "Finance",
-    icon: (
-      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
-        <path d="M3 15.2 7.2 10l3.1 3.1L17 6" />
-        <path d="M17 10V6h-4" />
       </svg>
     ),
   },
@@ -163,6 +170,110 @@ const NAV = [
     ),
   },
 ];
+
+type NavItem = (typeof NAV)[number];
+
+/* The money sections sit together under one heading that opens and closes. */
+const GROUPS: Record<string, { label: string; icon: React.ReactNode }> = {
+  finance: {
+    label: "Finance",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <rect x="2.8" y="5" width="14.4" height="11" rx="2" />
+        <path d="M2.8 8.4h14.4M13 12.2h1.6" />
+        <path d="M5 5V4.2a1 1 0 0 1 1.2-1l7.6 1.6" />
+      </svg>
+    ),
+  },
+};
+
+const isActive = (href: string, pathname: string) =>
+  href === "/" ? pathname === "/" : pathname.startsWith(href);
+
+/** The section links, with grouped ones under their heading. `collapsed` is
+ *  the icon-only sidebar; `roomy` the taller rows of the phone menu. */
+function NavList({
+  items,
+  pathname,
+  collapsed = false,
+  roomy = false,
+  onNavigate,
+}: {
+  items: NavItem[];
+  pathname: string;
+  collapsed?: boolean;
+  roomy?: boolean;
+  onNavigate?: () => void;
+}) {
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const row = `flex items-center gap-3 rounded-xl px-3 ${roomy ? "py-2.5" : "py-2"} text-sm font-medium transition-colors ${
+    collapsed ? "justify-center px-2" : ""
+  }`;
+  const tone = (active: boolean) =>
+    active ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900";
+
+  const link = (item: NavItem, inGroup: boolean) => {
+    const active = isActive(item.href, pathname);
+    const label = inGroup && "subLabel" in item && item.subLabel ? item.subLabel : item.label;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        aria-current={active ? "page" : undefined}
+        onClick={onNavigate}
+        {...newTabProps(item)}
+        className={`${row} ${inGroup && !collapsed ? "ml-4 pl-3" : ""} ${tone(active)}`}
+      >
+        {item.icon}
+        {!collapsed && <span>{label}</span>}
+      </Link>
+    );
+  };
+
+  const out: React.ReactNode[] = [];
+  const done = new Set<string>();
+  for (const item of items) {
+    const group = "group" in item ? item.group : undefined;
+    if (!group) {
+      out.push(link(item, false));
+      continue;
+    }
+    if (done.has(group)) continue;
+    done.add(group);
+    const members = items.filter((i) => "group" in i && i.group === group);
+    const holdsPage = members.some((i) => isActive(i.href, pathname));
+    const open = toggled[group] ?? holdsPage;
+    const heading = GROUPS[group];
+    out.push(
+      <div key={`group-${group}`} className="flex flex-col gap-1">
+        <button
+          type="button"
+          aria-expanded={open}
+          title={collapsed ? heading.label : undefined}
+          onClick={() => setToggled((prev) => ({ ...prev, [group]: !open }))}
+          className={`${row} ${holdsPage && !open ? "bg-neutral-100 text-neutral-900" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"}`}
+        >
+          {heading.icon}
+          {!collapsed && (
+            <>
+              <span className="flex-1 text-left">{heading.label}</span>
+              <svg viewBox="0 0 20 20" className={`size-3.5 transition-transform ${open ? "rotate-90" : ""}`} {...stroke}>
+                <path d="M8 5.5 12.5 10 8 14.5" />
+              </svg>
+            </>
+          )}
+        </button>
+        {open && (
+          <div className={`flex flex-col gap-1 ${collapsed ? "border-l-2 border-neutral-100 pl-0.5" : ""}`}>
+            {members.map((member) => link(member, true))}
+          </div>
+        )}
+      </div>,
+    );
+  }
+  return <>{out}</>;
+}
 
 /** A section that is its own full-window app opens in a new tab. */
 function newTabProps(item: { newTab?: boolean }) {
@@ -275,25 +386,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
 
             <nav className="flex flex-1 flex-col gap-1 py-4">
-              {nav.map((item) => {
-                const active =
-                  item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setDrawerOpen(false)}
-                    {...newTabProps(item)}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active
-                      ? "bg-neutral-900 text-white"
-                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-                      }`}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
+              <NavList items={nav} pathname={pathname} roomy onNavigate={() => setDrawerOpen(false)} />
             </nav>
 
             <div className="border-t border-neutral-100 pt-3">
@@ -361,27 +454,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 p-2" aria-label="Sections">
-          {nav.map((item) => {
-            const active =
-              item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed ? item.label : undefined}
-                aria-current={active ? "page" : undefined}
-                {...newTabProps(item)}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${collapsed ? "justify-center px-2" : ""
-                  } ${active
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-                  }`}
-              >
-                {item.icon}
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
+          <NavList items={nav} pathname={pathname} collapsed={collapsed} />
         </nav>
 
         {!canEdit && (
@@ -420,6 +493,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ---------------- MAIN CONTENT AREA ---------------- */}
       <main className="min-w-0 flex-1 pb-20 md:pb-6">{children}</main>
+      <ReminderAlerts />
 
       {/* ---------------- FIXED MOBILE BOTTOM NAVIGATION (< md) ---------------- */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 border-t border-neutral-200 bg-white/95 shadow-lg backdrop-blur-md md:hidden">

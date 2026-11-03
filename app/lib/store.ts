@@ -24,6 +24,7 @@ import {
   Settings,
   Show,
   ShowLayout,
+  ShowReminder,
   ShowStatus,
   formatMoney,
   normalizeShow,
@@ -32,7 +33,7 @@ import {
 import { Expense } from "./finance";
 import { Invoice, normalizeInvoice, totalsFor } from "./invoices";
 import { Quotation, normalizeQuotation } from "./quotations";
-import { Receipt, normalizeReceipt } from "./receipts";
+import { Receipt, normalizeReceipt, settledBy } from "./receipts";
 import {
   CLIENTS,
   EXPENSES,
@@ -643,9 +644,9 @@ export function upsertReceipt(draft: Omit<Receipt, "id">, id: string | null): st
       const otherReceipts = receipts.filter(
         (r) => r.invoiceId === draft.invoiceId && r.id !== receiptId,
       );
+      // TDS kept back by the client counts as paid on the invoice.
       const totalPaid =
-        otherReceipts.reduce((sum, r) => sum + (r.amountReceived || 0), 0) +
-        (draft.amountReceived || 0);
+        otherReceipts.reduce((sum, r) => sum + settledBy(r), 0) + settledBy(draft);
       const invTotals = totalsFor(inv);
       const isPaid = totalPaid >= invTotals.total && invTotals.total > 0;
       const patch: Partial<Invoice> = {
@@ -672,7 +673,7 @@ export function upsertReceipt(draft: Omit<Receipt, "id">, id: string | null): st
       "payment",
       receiptId,
       draft.number,
-      `Issued receipt ${draft.number} for "${who}" — ${formatMoney(draft.amountReceived)}${draft.invoiceNumber ? ` (Invoice ${draft.invoiceNumber})` : ""}`,
+      `Issued receipt ${draft.number} for "${who}" — ${formatMoney(draft.amountReceived)}${draft.tdsAmount ? ` + ${formatMoney(draft.tdsAmount)} TDS` : ""}${draft.invoiceNumber ? ` (Invoice ${draft.invoiceNumber})` : ""}`,
     );
   }
   return receiptId;
@@ -689,7 +690,7 @@ export function removeReceipt(id: string): void {
       const otherReceipts = receipts.filter(
         (r) => r.invoiceId === target.invoiceId && r.id !== id,
       );
-      const totalPaid = otherReceipts.reduce((sum, r) => sum + (r.amountReceived || 0), 0);
+      const totalPaid = otherReceipts.reduce((sum, r) => sum + settledBy(r), 0);
       const invTotals = totalsFor(inv);
       const isPaid = totalPaid >= invTotals.total && invTotals.total > 0;
       const patch: Partial<Invoice> = {
@@ -782,6 +783,22 @@ export function saveShowLayout(id: string, layout: ShowLayout): void {
     title,
     `Saved show layout for "${title}": ${layout.rows} × ${layout.cols} grid, ${layout.drones} drones, ${layout.spacingMeters} m spacing`,
   );
+}
+
+/** Replace a show's reminders; `what` says what changed, for the activity log. */
+export function saveShowReminders(id: string, reminders: ShowReminder[], what: string): void {
+  const target = shows.find((s) => s.id === id);
+  const title = target?.client || target?.location || "Show";
+  updateDoc(doc(db(), SHOWS, id), { reminders }).catch(fail);
+  recordActivity("edit", "show", id, title, `${what} on "${title}"`);
+}
+
+/** Remember the Drive folder a show's files were uploaded into. */
+export function setShowDriveFolder(id: string, driveFolder: { id: string; url: string }, uploaded: number): void {
+  const target = shows.find((s) => s.id === id);
+  const title = target?.client || target?.location || "Show";
+  updateDoc(doc(db(), SHOWS, id), { driveFolder }).catch(fail);
+  recordActivity("edit", "show", id, title, `Uploaded ${uploaded} file${uploaded === 1 ? "" : "s"} to Google Drive for "${title}"`);
 }
 
 export function setShowClient(id: string, clientId: string, name: string): void {

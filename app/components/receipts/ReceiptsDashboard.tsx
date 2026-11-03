@@ -212,6 +212,7 @@ export function ReceiptsDashboard({
     () => receipts.reduce((sum, r) => sum + (r.amountReceived || 0), 0),
     [receipts],
   );
+  const totalTds = useMemo(() => receipts.reduce((sum, r) => sum + (r.tdsAmount || 0), 0), [receipts]);
   const totalBalanceDue = useMemo(
     () => receipts.reduce((sum, r) => sum + (r.balanceDue || 0), 0),
     [receipts],
@@ -230,7 +231,7 @@ export function ReceiptsDashboard({
     {
       label: "Total Collected",
       value: formatMoney(totalAmountReceived),
-      note: "total payment recorded on receipts",
+      note: totalTds ? `plus ${formatMoney(totalTds)} TDS deducted by clients` : "total payment recorded on receipts",
     },
     {
       label: "Outstanding Balance",
@@ -432,6 +433,9 @@ export function ReceiptsDashboard({
                         </td>
                         <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-700 text-[13px]">
                           {formatMoney(r.amountReceived)}
+                          {r.tdsAmount > 0 && (
+                            <div className="text-[10px] font-medium text-neutral-500">+ {formatMoney(r.tdsAmount)} TDS</div>
+                          )}
                         </td>
                         <td className="px-3 py-2.5 text-right font-mono text-xs text-neutral-600">
                           {formatMoney(r.totalAmountDue)}

@@ -4,7 +4,6 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import {
   EXPENSE_CATEGORIES,
   Expense,
-  gstForMonth,
   summariseMonth,
 } from "../../lib/finance";
 import { INVOICE_STATUSES, Invoice, totalsFor } from "../../lib/invoices";
@@ -21,10 +20,11 @@ import {
   subscribe as teamSubscribe,
 } from "../../lib/team-store";
 import { formatMonth, payableThisMonth, recentMonths, currentMonth } from "../../lib/team";
-import { PAYMENT_MODES, daysAway, formatCompactMoney, formatDate, formatMoney } from "../../lib/types";
+import { PAYMENT_MODES, daysAway, formatDate, formatMoney } from "../../lib/types";
 import { useAuth } from "../AuthProvider";
 import { SiteHeader } from "../SiteHeader";
 import { ExpenseDialog } from "./ExpenseDialog";
+import { ReceiptsByShow } from "./ReceiptsByShow";
 
 function invoiceLabel(invoice: Invoice, balance: number): string {
   if (invoice.status === "draft" || invoice.status === "paid" || invoice.status === "cancelled") {
@@ -53,6 +53,7 @@ export function FinanceDashboard() {
   const payments = useMemo(() => desk?.payments ?? [], [desk]);
   const expenses = useMemo(() => desk?.expenses ?? [], [desk]);
   const invoices = useMemo(() => desk?.invoices ?? [], [desk]);
+  const receipts = useMemo(() => desk?.receipts ?? [], [desk]);
   const members = useMemo(() => team?.members ?? [], [team]);
   const requests = useMemo(() => team?.requests ?? [], [team]);
 
@@ -61,7 +62,6 @@ export function FinanceDashboard() {
     [month, shows, payments, expenses, members, requests],
   );
 
-  const gst = useMemo(() => gstForMonth(invoices, month), [invoices, month]);
   const monthExpenses = expenses
     .filter((e) => e.date.startsWith(month))
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -80,35 +80,11 @@ export function FinanceDashboard() {
     setDialog({ open: false, expense: null });
   }
 
-  const tiles = [
-    {
-      label: "Collected",
-      value: formatCompactMoney(summary.received),
-      note: "cash logged on shows",
-    },
-    {
-      label: "Invoiced",
-      value: formatCompactMoney(gst.invoiced),
-      note: gst.tax > 0 ? `includes ${formatCompactMoney(gst.tax)} GST` : "nothing billed this month",
-    },
-    {
-      label: "Spent",
-      value: formatCompactMoney(summary.outgoings),
-      note: `${formatCompactMoney(summary.salaries)} salary · ${formatCompactMoney(summary.commission)} commission · ${formatCompactMoney(summary.expenses)} expenses`,
-    },
-    {
-      label: "Net",
-      value: formatCompactMoney(Math.abs(summary.net)),
-      note: summary.net < 0 ? "spent more than was collected" : "collected minus what was spent",
-      negative: summary.net < 0,
-    },
-  ];
-
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
       <SiteHeader
         title="Finance"
-        subtitle="One month: what was billed, what was collected, and what was spent"
+        subtitle="What each show brought in, what was invoiced and what was spent"
         actions={
           <>
             <select
@@ -142,27 +118,15 @@ export function FinanceDashboard() {
         </div>
       ) : (
         <>
-          <section
-            aria-label="Summary"
-            className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-neutral-100 shadow-sm shadow-neutral-900/5 lg:grid-cols-4"
-          >
-            {tiles.map((tile) => (
-              <div key={tile.label} className="bg-white px-4 py-3.5">
-                <div className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
-                  {tile.label}
-                </div>
-                <div
-                  className={`tnum mt-1 text-2xl font-semibold tracking-tight ${
-                    tile.negative ? "text-red-600" : "text-neutral-900"
-                  }`}
-                >
-                  {tile.negative ? "−" : ""}
-                  {tile.value}
-                </div>
-                <div className="mt-0.5 text-xs text-neutral-500">{tile.note}</div>
-              </div>
-            ))}
-          </section>
+          <ReceiptsByShow
+            shows={shows}
+            receipts={receipts}
+            payments={payments}
+            invoices={invoices}
+            expenses={expenses}
+            monthSpend={summary}
+            month={month}
+          />
 
           <section className="flex flex-col gap-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-600">

@@ -125,8 +125,8 @@ export async function getSavedRefreshToken(): Promise<string | null> {
   return null;
 }
 
-/** Gets an authenticated Google Drive client using saved refresh token */
-export async function getAuthenticatedDrive() {
+/** The signed-in Google account, ready to call Drive with. */
+async function getAuthorizedClient() {
   const refreshToken = await getSavedRefreshToken();
   if (!refreshToken) {
     throw new Error(
@@ -136,8 +136,104 @@ export async function getAuthenticatedDrive() {
 
   const oauth2Client = getOAuth2Client();
   oauth2Client.setCredentials({ refresh_token: refreshToken });
+  return oauth2Client;
+}
 
-  return google.drive({ version: "v3", auth: oauth2Client });
+/** Gets an authenticated Google Drive client using saved refresh token */
+export async function getAuthenticatedDrive() {
+  return google.drive({ version: "v3", auth: await getAuthorizedClient() });
+}
+
+/* ---------------- show files ---------------- */
+
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+/** Every show's folder sits in this one, inside the desk's Drive folder. */
+const SHOWS_FOLDER_NAME = "Show files";
+
+const quoteForQuery = (value: string) => value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+/** The folder called `name` inside `parentId`, made if it is not there yet. */
+export async function ensureFolder(name: string, parentId: string): Promise<{ id: string; url: string }> {
+  const drive = await getAuthenticatedDrive();
+  const found = await drive.files.list({
+    q: `'${parentId}' in parents and name = '${quoteForQuery(name)}' and mimeType = '${FOLDER_MIME}' and trashed = false`,
+    fields: "files(id, webViewLink)",
+    spaces: "drive",
+    pageSize: 1,
+  });
+  const existing = found.data.files?.[0];
+  if (existing?.id) return { id: existing.id, url: existing.webViewLink ?? "" };
+
+  const made = await drive.files.create({
+    requestBody: { name, mimeType: FOLDER_MIME, parents: [parentId] },
+    fields: "id, webViewLink",
+  });
+  if (!made.data.id) throw new Error(`Drive did not make the folder "${name}".`);
+  return { id: made.data.id, url: made.data.webViewLink ?? "" };
+}
+
+/** A show's own folder: Show files / <name>. A folder saved on the show earlier
+ *  is reused as long as it still exists and is not in the bin. */
+export async function showFolder(name: string, savedId?: string): Promise<{ id: string; url: string }> {
+  const drive = await getAuthenticatedDrive();
+  if (savedId) {
+    try {
+      const saved = await drive.files.get({ fileId: savedId, fields: "id, webViewLink, trashed" });
+      if (saved.data.id && !saved.data.trashed) return { id: saved.data.id, url: saved.data.webViewLink ?? "" };
+    } catch {
+      /* gone — make it again below */
+    }
+  }
+  const root = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  if (!root) throw new Error("GOOGLE_DRIVE_FOLDER_ID is not configured in .env.");
+  const shows = await ensureFolder(SHOWS_FOLDER_NAME, root);
+  return ensureFolder(name, shows.id);
+}
+
+/** Opens a resumable upload straight from the browser into `folderId`, after
+ *  making the sub-folders in `path` ("Photos/Day 1"). The file itself never
+ *  passes through this server, so its size is not limited by it. Drive only
+ *  lets the browser use the session if it was opened for the page's origin. */
+export async function startUpload({
+  folderId,
+  path: subPath,
+  name,
+  mimeType,
+  size,
+  origin,
+}: {
+  folderId: string;
+  path: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  origin: string;
+}): Promise<string> {
+  let parent = folderId;
+  for (const part of subPath.split("/").map((p) => p.trim()).filter(Boolean)) {
+    parent = (await ensureFolder(part, parent)).id;
+  }
+
+  const auth = await getAuthorizedClient();
+  const { token } = await auth.getAccessToken();
+  if (!token) throw new Error("Could not get a Google Drive access token.");
+
+  const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,webViewLink", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json; charset=UTF-8",
+      "X-Upload-Content-Type": mimeType || "application/octet-stream",
+      "X-Upload-Content-Length": String(size),
+      Origin: origin,
+    },
+    body: JSON.stringify({ name, parents: [parent] }),
+  });
+  const location = res.headers.get("location");
+  if (!res.ok || !location) {
+    throw new Error(`Drive would not start the upload (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  }
+  return location;
 }
 
 /** Uploads a PDF to the configured Google Drive folder, deleting any existing file with the same name to prevent duplicates */

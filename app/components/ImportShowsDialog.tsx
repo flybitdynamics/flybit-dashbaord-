@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ImportRow, readSheet } from "../lib/import-shows";
+import { xlsxToText } from "../lib/read-xlsx";
 import { importShows } from "../lib/store";
 import { SHOW_STATUSES, Show, formatMoney } from "../lib/types";
 import { Modal, inputClass } from "./Modal";
@@ -39,6 +40,16 @@ export function ImportShowsDialog({
   const skipped = rows.filter((row) => row.skip).length;
   const found = columns && columns.name >= 0;
 
+  /** An Excel file is read here; a .tsv or .txt is already text. */
+  async function readFile(file: File) {
+    setProblem(null);
+    try {
+      setText(/\.xlsx$/i.test(file.name) ? xlsxToText(await file.arrayBuffer()) : await file.text());
+    } catch {
+      setProblem("That file could not be read. Save it as .xlsx from Excel and try again.");
+    }
+  }
+
   async function run() {
     if (chosen.length === 0) return;
     setBusy(true);
@@ -55,7 +66,7 @@ export function ImportShowsDialog({
   return (
     <Modal
       title="Import from a spreadsheet"
-      subtitle="Select the rows in Excel, copy, and paste them here."
+      subtitle="Choose an Excel file, or copy the rows in Excel and paste them here, with the header row."
       onClose={onClose}
       width="max-w-5xl"
       footer={
@@ -92,18 +103,38 @@ export function ImportShowsDialog({
           <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{problem}</p>
         )}
 
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="cursor-pointer rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800">
+            Choose Excel file
+            <input
+              type="file"
+              accept=".xlsx,.tsv,.txt"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void readFile(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <a href="/shows-import-template.xlsx" download className="text-sm text-neutral-600 underline hover:text-neutral-900">
+            Download the blank template
+          </a>
+        </div>
+
         <textarea
           rows={rows.length ? 3 : 8}
           className={`${inputClass} resize-y font-mono text-xs`}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={"Paste here — include the header row (name, purpose, city/state, how much drones, result, deal)."}
+          placeholder={"Or paste here — include the header row: Name, Phone, Purpose, Place, Drones, Result, Quoted, Show date, Notes."}
         />
 
         {text.trim() && !found && (
           <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            No header row found. The paste needs a line naming the columns — at least a
-            <strong> name</strong> column — so each one can be read.
+            No header row found. The first line needs to name the columns — at least a
+            <strong> Name</strong> column — so each one can be read. The blank template has the
+            right headings.
           </p>
         )}
 
@@ -173,8 +204,8 @@ export function ImportShowsDialog({
             <p className="text-[11px] text-neutral-500">
               Every row keeps its original wording in the show&rsquo;s notes, so anything read
               wrongly here — a price written as &ldquo;4.50 lakhs&rdquo;, a count written as
-              &ldquo;400 or 500&rdquo; — can be corrected on the show afterwards. Dates are not
-              taken from the sheet: set the show date when the booking firms up.
+              &ldquo;400 or 500&rdquo; — can be corrected on the show afterwards. The show date
+              comes only from a Show date column with a full date.
             </p>
           </>
         )}

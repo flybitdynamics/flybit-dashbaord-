@@ -23,11 +23,14 @@ import {
   formatNumber,
   formatTime,
   isBooked,
+  openReminders,
   pendingFor,
   placeLabel,
   receivedFor,
 } from "../lib/types";
 import { Modal } from "./Modal";
+import { DriveUploadDialog } from "./DriveUploadDialog";
+import { ReminderDialog, reminderStamp } from "./ReminderDialog";
 import {
   CertificateBadge,
   ClientTypeBadge,
@@ -167,6 +170,9 @@ export function ShowDetailDialog({
   const booked = isBooked(show);
   const desk = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [reporting, setReporting] = useState(false);
+  const [reminding, setReminding] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const pendingReminders = openReminders(show);
 
   /** The whole-show PDF for management. jsPDF loads only when asked for. */
   async function downloadReport() {
@@ -219,6 +225,7 @@ export function ShowDetailDialog({
   }
 
   return (
+    <>
     <Modal
       title={show.client || show.location || "Show"}
       subtitle={`${formatDate(show.showDate)} · ${formatTime(show.showStartTime)}–${formatTime(show.showEndTime)} · ${countdownLabel(show.showDate)}`}
@@ -227,6 +234,36 @@ export function ShowDetailDialog({
       footer={
         <>
           <div className="ml-auto flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setReminding(true)}
+              className="flex items-center gap-1.5 rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
+              title="Set a reminder on this show, with a date, time and note"
+            >
+              <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M5 8.5a5 5 0 0 1 10 0c0 4 1.5 5.5 1.5 5.5h-13S5 12.5 5 8.5z" />
+                <path d="M8.5 16.5a1.6 1.6 0 0 0 3 0" />
+              </svg>
+              Reminder
+              {pendingReminders.length > 0 && (
+                <span className="tnum rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">
+                  {pendingReminders.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploading(true)}
+              className="flex items-center gap-1.5 rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-200"
+              title="Upload this show's files and folders to Google Drive"
+            >
+              <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M6 14.5H5a3 3 0 0 1-.4-6 4.5 4.5 0 0 1 8.7-1.2A3.5 3.5 0 0 1 15 14.5h-1" />
+                <path d="M10 17V10M7.5 12.5 10 10l2.5 2.5" />
+              </svg>
+              Upload to Drive
+              {show.driveFolder && <span className="size-1.5 rounded-full bg-emerald-500" aria-label="files in Drive" />}
+            </button>
             <button
               type="button"
               onClick={() => void downloadReport()}
@@ -382,6 +419,23 @@ export function ShowDetailDialog({
               </span>
             </Row>
           )}
+          {pendingReminders.length > 0 && (
+            <Row label="Next reminder">
+              <button type="button" onClick={() => setReminding(true)} className="text-left text-xs text-neutral-600 hover:text-neutral-900">
+                <span className="tnum font-mono">{reminderStamp.format(new Date(pendingReminders[0].at))}</span>
+                {" · "}
+                {pendingReminders[0].note.length > 60 ? `${pendingReminders[0].note.slice(0, 60)}…` : pendingReminders[0].note}
+                {pendingReminders.length > 1 && ` (+${pendingReminders.length - 1} more)`}
+              </button>
+            </Row>
+          )}
+          {show.driveFolder?.url && (
+            <Row label="Drive folder">
+              <a href={show.driveFolder.url} target="_blank" rel="noopener noreferrer" className="text-xs text-neutral-600 underline">
+                Open the show&rsquo;s files in Google Drive
+              </a>
+            </Row>
+          )}
           {show.layout && (
             <Row label="Show layout">
               <span className="text-xs text-neutral-600">
@@ -483,5 +537,8 @@ export function ShowDetailDialog({
         )}
       </div>
     </Modal>
+    {uploading && <DriveUploadDialog show={show} canEdit={canEdit} onClose={() => setUploading(false)} />}
+    {reminding && <ReminderDialog show={show} canEdit={canEdit} onClose={() => setReminding(false)} />}
+    </>
   );
 }

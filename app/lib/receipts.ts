@@ -39,6 +39,12 @@ export interface Receipt {
   totalAmountDue: number;
   /** Amount Received in this receipt */
   amountReceived: number;
+  /** TDS the client kept back and paid to the government instead of us.
+   *  It settles the invoice as surely as money received, so the balance
+   *  goes down by received + TDS. 0 when none was deducted. */
+  tdsAmount: number;
+  /** The TDS rate it was worked out at, in percent; 0 when typed by hand. */
+  tdsRate: number;
   /** Balance Due remaining */
   balanceDue: number;
   /** Mode of payment */
@@ -54,6 +60,19 @@ export interface Receipt {
   /** Print computer-generated fineprint footer */
   fineprint: boolean;
   createdAt: string;
+}
+
+/** The usual rate clients deduct on a drone show (194J / 194C work). */
+export const TDS_DEFAULT_RATE = 10;
+
+/** TDS is worked out on the amount before GST, never on the GST itself. */
+export function tdsOn(taxable: number, rate = TDS_DEFAULT_RATE): number {
+  return Math.round(((taxable || 0) * rate) / 100);
+}
+
+/** What a receipt takes off the balance: money received plus TDS kept back. */
+export function settledBy(receipt: Pick<Receipt, "amountReceived" | "tdsAmount">): number {
+  return (receipt.amountReceived || 0) + (receipt.tdsAmount || 0);
 }
 
 export function receiptDate(iso: string): string {
@@ -112,6 +131,8 @@ export function emptyReceipt(suggestedNumber = "REC-2026-001"): Omit<Receipt, "i
     forReason: "",
     totalAmountDue: 0,
     amountReceived: 0,
+    tdsAmount: 0,
+    tdsRate: 0,
     balanceDue: 0,
     paymentMode: "bank",
     referenceNumber: "",
@@ -137,22 +158,25 @@ export function invoiceReceiptSummary(
       (!excludeReceiptId || (r.id !== excludeReceiptId && r.number !== excludeReceiptId)),
   );
   const totalReceived = relevantReceipts.reduce((sum, r) => sum + (r.amountReceived || 0), 0);
+  const totalTds = relevantReceipts.reduce((sum, r) => sum + (r.tdsAmount || 0), 0);
+  const totalSettled = totalReceived + totalTds;
 
   // When invoice balance is 0 or status is paid or receipts cover total, balance is 0
   const isZeroBalance =
     totals.balance <= 0 ||
     invoice.status === "paid" ||
-    (totals.total > 0 && totalReceived >= totals.total);
+    (totals.total > 0 && totalSettled >= totals.total);
 
   const remainingPending = isZeroBalance
     ? 0
-    : Math.max(0, Math.min(totals.balance, totals.total - totalReceived));
+    : Math.max(0, Math.min(totals.balance, totals.total - totalSettled));
   const isFullyMatched = isZeroBalance;
 
   return {
     invoiceTotal: totals.total,
     invoiceBalance: totals.balance,
     totalReceived,
+    totalTds,
     remainingPending,
     isFullyMatched,
     isZeroBalance,
@@ -186,7 +210,7 @@ export function receiptFromInvoice(
 
   const received = Math.max(0, defaultAmount);
   // Remaining balance after this receipt is issued
-  const balance = Math.max(0, totals.total - (summary.totalReceived + received));
+  const balance = Math.max(0, totals.total - (summary.totalReceived + summary.totalTds + received));
 
   const installmentLabel =
     summary.receiptCount > 0 ? ` (Part Payment #${summary.receiptCount + 1})` : "";
@@ -209,6 +233,8 @@ export function receiptFromInvoice(
     forReason: showDescription,
     totalAmountDue: totals.total,
     amountReceived: received,
+    tdsAmount: 0,
+    tdsRate: 0,
     balanceDue: balance,
     paymentMode: mode,
     referenceNumber: "",
@@ -224,7 +250,8 @@ export function normalizeReceipt(id: string, raw: any): Receipt {
   const r = raw || {};
   const total = Number(r.totalAmountDue) || 0;
   const received = Number(r.amountReceived) || 0;
-  const balance = r.balanceDue !== undefined ? Number(r.balanceDue) : Math.max(0, total - received);
+  const tds = Number(r.tdsAmount) || 0;
+  const balance = r.balanceDue !== undefined ? Number(r.balanceDue) : Math.max(0, total - received - tds);
 
   return {
     id,
@@ -241,6 +268,8 @@ export function normalizeReceipt(id: string, raw: any): Receipt {
     forReason: String(r.forReason || ""),
     totalAmountDue: total,
     amountReceived: received,
+    tdsAmount: tds,
+    tdsRate: Number(r.tdsRate) || 0,
     balanceDue: balance,
     paymentMode: (["cash", "upi", "bank", "cheque", "other"].includes(r.paymentMode)
       ? r.paymentMode
