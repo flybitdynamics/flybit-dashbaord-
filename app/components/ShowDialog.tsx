@@ -341,55 +341,25 @@ export function ShowDialog({
           ? `${formatMoney(amountVal)} less ${formatMoney(commVal)} commission = ${formatMoney(amountVal - commVal)}${isLead ? " (Lead · not in budget)" : ""}`
           : `${formatMoney(amountVal)}${isLead ? " (Lead · not in budget)" : ""}`;
 
-  function getMissingConfirmationFields(d: Draft): string[] {
-    const missing: string[] = [];
-    if (!d.state.trim()) missing.push("State");
-    if (!d.location.trim()) missing.push("District / City");
-    if (!d.venueAddress.trim()) missing.push("Venue Address");
-    if (!d.coordinates.trim()) missing.push("Coordinates");
-    if (!d.showDate.trim()) missing.push("Show Date");
-    if (!d.showStartTime.trim() || !d.showEndTime.trim()) missing.push("Start/End Time");
-    if (d.droneCount === "" || d.droneCount === undefined || d.droneCount === null || Number(d.droneCount) < 0) {
-      missing.push("Drone Count");
-    }
-    if (d.showAmount === "" || d.showAmount === undefined || d.showAmount === null || Number(d.showAmount) < 0) {
-      missing.push("Show Amount");
-    }
-    return missing;
-  }
-
+  /** Nothing is compulsory: a show can be saved with any fields empty. */
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (draft.showStatus === "confirmed" || draft.showStatus === "completed" || draft.showStatus === "closed") {
-      const missing = getMissingConfirmationFields(draft);
-      if (missing.length > 0) {
-        setProblem(`To confirm this booking, please complete all compulsory fields: ${missing.join(", ")}.`);
-        return;
-      }
-    }
-    if (!draft.location.trim()) {
-      setProblem("Add the district or city — the MoCA letter needs it.");
-      return;
-    }
 
     let clientId = draft.clientId;
     let clientName = draft.client;
 
     if (choice === NEW_CLIENT) {
-      if (!newName.trim()) {
-        setProblem("Give the new client a name, or pick an existing one.");
-        return;
-      }
+      const name = newName.trim() || draft.contactName.trim();
       clientId = onCreateClient({
         ...emptyClient(),
-        name: newName.trim(),
+        name,
         type: newType,
         contactName: draft.contactName.trim(),
         contactPhone: draft.contactPhone.trim(),
         state: draft.state.trim(),
         city: draft.location.trim(),
       });
-      clientName = newName.trim();
+      clientName = name;
     } else if (!choice) {
       clientId = "";
     }
@@ -470,18 +440,7 @@ export function ShowDialog({
             className={inputClass}
             value={draft.showStatus}
             onChange={(e) => {
-              const nextStatus = e.target.value as ShowStatus;
-              if (nextStatus === "confirmed" || nextStatus === "completed" || nextStatus === "closed") {
-                const missing = getMissingConfirmationFields(draft);
-                if (missing.length > 0) {
-                  setProblem(`Compulsory fields needed for ${SHOW_STATUSES[nextStatus]}: ${missing.join(", ")}.`);
-                } else {
-                  setProblem(null);
-                }
-              } else {
-                setProblem(null);
-              }
-              set("showStatus", nextStatus);
+              set("showStatus", e.target.value as ShowStatus);
             }}
           >
             {(Object.keys(SHOW_STATUSES) as ShowStatus[]).map((key) => (
@@ -617,7 +576,6 @@ export function ShowDialog({
           <input
             id="f-location"
             list="dl-cities"
-            required
             className={inputClass}
             value={draft.location}
             onChange={(e) => set("location", e.target.value)}
@@ -722,7 +680,6 @@ export function ShowDialog({
           <input
             id="f-showdate"
             type="date"
-            required
             className={inputClass}
             value={draft.showDate}
             onChange={(e) => set("showDate", e.target.value)}
