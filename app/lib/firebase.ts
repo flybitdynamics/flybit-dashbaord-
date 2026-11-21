@@ -44,6 +44,7 @@ export const PLACES = "places";
 export const INVOICES = "invoices";
 export const QUOTATIONS = "quotations";
 export const RECEIPTS = "receipts";
+export const PURCHASE_ORDERS = "purchaseOrders";
 export const USERS = "users";
 export const ROLES = "roles";
 export const LOGS = "audit_logs";

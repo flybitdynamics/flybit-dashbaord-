@@ -77,6 +77,7 @@ thing on the server** — hiding a button is a convenience, not the protection.
 | `places/{id}`        | State / city / area, remembered for the next booking    |
 | `quotations/{id}`    | A priced letter on the company letterhead               |
 | `invoices/{id}`      | A tax invoice, on the company's own printed format      |
+| `purchaseOrders/{id}` | A purchase order to a supplier (Finance permission)     |
 | `payments/{id}`      | One receipt, linked by `showId`                         |
 | `expenses/{id}`      | Money out that is not salary or commission              |
 | `settings/company`   | The values the permission documents are filled from     |

@@ -70,7 +70,7 @@ function ContactRow({
   );
 }
 
-function Letterhead({ settings }: { settings: Settings }) {
+export function Letterhead({ settings }: { settings: Settings }) {
   return (
     <div className="q-head">
       <Image

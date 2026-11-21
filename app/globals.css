@@ -979,3 +979,467 @@ textarea.inv-edit {
 .q-add-bullet button:hover {
   text-decoration: underline;
 }
+/* ------------------------------------------------------------------ *
+ * Purchase order sheet.
+ *
+ * Two A4 pages measured off FBD/PO/26-27/001: a 526pt content block
+ * 35pt in from each edge, dark table heads, orange section labels and the
+ * letterhead's orange rule across the foot. Sizes are the printed ones.
+ * ------------------------------------------------------------------ */
+
+.po-sheet {
+  font-family: Helvetica, Arial, "Helvetica Neue", sans-serif;
+  color: #1a1a1a;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.po-page {
+  position: relative;
+  width: 595.3pt;
+  height: 841.9pt;
+  padding: 0 34.8pt;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  font-size: 8.4pt;
+  line-height: 10pt;
+  overflow: hidden;
+}
+
+.po-page-two {
+  margin-top: 16pt;
+}
+
+@media print {
+  .po-sheet {
+    margin: 0 auto !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .po-page-two {
+    margin-top: 0;
+  }
+
+  .po-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .po-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}
+
+/* The letterhead is the quotation's; only its place on A4 differs. */
+.po-page .q-head {
+  padding: 19pt 2pt 0 24pt;
+}
+
+.po-page .q-logo {
+  width: 116pt;
+}
+
+.po-page .q-contact {
+  margin-top: -19pt;
+  padding-top: 22.5pt;
+}
+
+.po-page .q-tab {
+  height: 41.5pt;
+}
+
+.po-page .q-contact-row {
+  height: 23.2pt;
+}
+
+.po-body {
+  flex: 1;
+  min-height: 0;
+  padding-top: 26pt;
+}
+
+.po-title {
+  margin: 0 0 9pt;
+  text-align: center;
+  font-size: 16.5pt;
+  line-height: 20pt;
+  font-weight: 700;
+  color: #23272b;
+}
+
+.po-section {
+  margin: 9pt 0 5pt 6pt;
+  font-size: 8.4pt;
+  font-weight: 700;
+  color: #c8902c;
+  letter-spacing: 0.1pt;
+}
+
+.po-section-gap {
+  margin-top: 26pt;
+}
+
+/* PO number / date strip */
+.po-strip,
+.po-parties,
+.po-items,
+.po-totals,
+.po-details {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.po-strip th,
+.po-strip td {
+  border: 0.6pt solid #d9dce1;
+  padding: 0 4.5pt;
+  height: 17.4pt;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.po-strip th {
+  width: 14.2%;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+/* parties */
+.po-parties th {
+  background: #212529;
+  color: #fff;
+  font-weight: 700;
+  text-align: left;
+  padding: 0 4.5pt;
+  height: 18pt;
+  border: 0.6pt solid #212529;
+}
+
+.po-parties th + th {
+  border-left-color: #fff;
+}
+
+.po-parties td {
+  border: 0.6pt solid #d9dce1;
+  padding: 4.5pt 4.5pt 4pt;
+  vertical-align: top;
+}
+
+.po-labelled {
+  display: flex;
+  align-items: flex-start;
+}
+
+.po-labelled > b {
+  flex: none;
+}
+
+.po-labelled > span,
+.po-labelled > .inv-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.po-greeting {
+  margin: 10pt 0 0 6.5pt;
+  font-weight: 700;
+}
+
+.po-intro {
+  margin: 6pt 6.5pt 0;
+}
+
+/* items */
+.po-items {
+  width: auto;
+  margin: 8pt 21.2pt 0;
+  width: calc(100% - 42.4pt);
+  font-size: 7pt;
+  line-height: 9pt;
+}
+
+.po-items th {
+  background: #212529;
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+  height: 17pt;
+  padding: 0 3pt;
+  border: 0.6pt solid #212529;
+  border-left-color: #3a3f44;
+}
+
+.po-items td {
+  border: 0.6pt solid #d9dce1;
+  height: 17.4pt;
+  padding: 2pt 4pt;
+  vertical-align: middle;
+}
+
+.po-center {
+  text-align: center;
+}
+
+.po-items .q-row-del,
+.po-items .q-row-add {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.po-hint {
+  margin: 3pt 21.2pt 0;
+  font-size: 6.5pt;
+  color: #9ca3af;
+}
+
+/* totals */
+.po-totals {
+  margin-top: 23pt;
+}
+
+.po-totals td {
+  border: 0.75pt solid #1a1a1a;
+  height: 18pt;
+  padding: 0 4.5pt;
+  vertical-align: middle;
+  color: #6b7280;
+}
+
+.po-totals td:last-child {
+  width: 23.9%;
+  text-align: right;
+  color: #1a1a1a;
+}
+
+.po-grand td {
+  background: #f3f4f6;
+  color: #c8902c !important;
+  font-weight: 700;
+}
+
+.po-grand td:first-child {
+  box-shadow: inset 1.5pt 0 0 #c8902c;
+}
+
+.po-tax-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2pt;
+}
+
+.po-tax-rate {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1pt;
+  color: #9ca3af;
+}
+
+.po-w-label {
+  width: 60pt;
+}
+
+.po-w-rate {
+  width: 34pt;
+}
+
+.po-w-term {
+  width: 300pt;
+}
+
+.po-words {
+  margin: 7pt 0 0 6.5pt;
+  display: flex;
+  gap: 3pt;
+  align-items: flex-start;
+}
+
+.po-words > b {
+  flex: none;
+}
+
+.po-words-edit {
+  flex: 1;
+  display: flex;
+  gap: 4pt;
+  align-items: flex-start;
+}
+
+.po-words-edit > .inv-grow {
+  flex: 1;
+}
+
+/* order details */
+.po-details th,
+.po-details td {
+  border: 0.6pt solid #d9dce1;
+  height: 17.4pt;
+  padding: 0 4.5pt;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.po-details th {
+  width: 21.3%;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.po-details td {
+  font-size: 8.8pt;
+}
+
+/* signature */
+.po-sign {
+  margin: 27pt 7.5pt 0 0;
+  text-align: right;
+}
+
+.po-for {
+  font-weight: 700;
+}
+
+.po-signer {
+  margin-top: 56pt;
+}
+
+.po-right {
+  text-align: right;
+  width: 220pt;
+}
+
+/* terms page */
+.po-page-two .po-body {
+  padding-top: 52pt;
+}
+
+.po-terms-title {
+  font-size: 13.5pt;
+  margin-bottom: 4pt;
+}
+
+.po-terms-sub {
+  text-align: center;
+  font-size: 6.6pt;
+  font-weight: 700;
+  color: #c8902c;
+  white-space: pre;
+}
+
+.po-center-input {
+  text-align: center;
+}
+
+.po-terms {
+  list-style: none;
+  margin: 30pt 0 0 6.5pt;
+  padding: 0;
+  font-size: 7.4pt;
+  line-height: 9.2pt;
+}
+
+.po-terms li {
+  margin-bottom: 5.6pt;
+}
+
+.po-term-title {
+  display: flex;
+  gap: 2pt;
+  font-size: 7.8pt;
+  font-weight: 700;
+  color: #c8902c;
+}
+
+.po-terms-note {
+  margin: 4pt 0 0 6.5pt;
+  font-size: 6.6pt;
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* footer */
+.po-footer {
+  flex: none;
+  padding-bottom: 19pt;
+}
+
+.po-rule {
+  height: 2.2pt;
+  background: #f6a20a;
+  margin: 0 -34.8pt 11pt;
+}
+
+.po-address {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7pt;
+  font-size: 9.6pt;
+  line-height: 12pt;
+  color: #333;
+}
+
+.po-address .q-icon-pin {
+  width: 14pt;
+  height: 14pt;
+  margin: 0;
+}
+
+/* editing controls */
+.po-del {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12pt;
+  height: 12pt;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f1f4;
+  color: #8a8a8a;
+  font-size: 7pt;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.po-del:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.po-del-left {
+  left: -18pt;
+}
+
+.po-terms .po-del-left {
+  top: 6pt;
+  left: -24pt;
+}
+
+.po-add-link {
+  margin: 3pt 0 0 6.5pt;
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  font: inherit;
+  font-size: 7pt;
+  font-weight: 400;
+  cursor: pointer;
+  padding: 0;
+}
+
+.po-grand .po-add-link {
+  margin-left: 10pt;
+}
+
+.po-add-link:hover {
+  text-decoration: underline;
+}

@@ -127,6 +127,18 @@ const NAV = [
     ),
   },
   {
+    href: "/purchase-orders",
+    group: "finance",
+    label: "Purchase Orders",
+    icon: (
+      <svg viewBox="0 0 20 20" className="size-[18px]" {...stroke}>
+        <path d="M3 4h2l1.6 8.2h8.6L17 6.5H6" />
+        <circle cx="8" cy="15.5" r="1.2" />
+        <circle cx="14" cy="15.5" r="1.2" />
+      </svg>
+    ),
+  },
+  {
     href: "/team",
     label: "Team",
     icon: (
@@ -291,6 +303,7 @@ const MODULE_OF: Record<string, Module | null> = {
   "/quotations": "quotations",
   "/invoices": "invoices",
   "/receipts": "receipts",
+  "/purchase-orders": "finance",
   "/finance": "finance",
   "/team": "team",
   "/maps": null,
@@ -497,7 +510,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ---------------- FIXED MOBILE BOTTOM NAVIGATION (< md) ---------------- */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 border-t border-neutral-200 bg-white/95 shadow-lg backdrop-blur-md md:hidden">
-        {nav.filter((item) => !["/pilots", "/quotations", "/invoices", "/receipts", "/maps", "/team", "/settings"].includes(item.href)).map((item) => {
+        {nav.filter((item) => !["/pilots", "/quotations", "/invoices", "/receipts", "/purchase-orders", "/maps", "/team", "/settings"].includes(item.href)).map((item) => {
           const active =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (

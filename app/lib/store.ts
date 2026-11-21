@@ -34,6 +34,7 @@ import { Expense } from "./finance";
 import { Invoice, normalizeInvoice, totalsFor } from "./invoices";
 import { Quotation, normalizeQuotation } from "./quotations";
 import { Receipt, normalizeReceipt, settledBy } from "./receipts";
+import { PurchaseOrder, normalizePurchaseOrder } from "./purchase-orders";
 import {
   CLIENTS,
   EXPENSES,
@@ -41,6 +42,7 @@ import {
   LOGS,
   QUOTATIONS,
   RECEIPTS,
+  PURCHASE_ORDERS,
   PAYMENTS,
   PILOTS,
   PLACES,
@@ -62,6 +64,7 @@ export interface DeskState {
   invoices: Invoice[];
   quotations: Quotation[];
   receipts: Receipt[];
+  purchaseOrders: PurchaseOrder[];
   settings: Settings;
   logs: AuditLog[];
   /** Set when Firestore refuses or cannot be reached. */
@@ -80,6 +83,7 @@ let places: Place[] = [];
 let invoices: Invoice[] = [];
 let quotations: Quotation[] = [];
 let receipts: Receipt[] = [];
+let purchaseOrders: PurchaseOrder[] = [];
 let settings: Settings = DEFAULT_SETTINGS;
 let logs: AuditLog[] = [];
 let error: string | null = null;
@@ -93,6 +97,7 @@ const seen = {
   invoices: false,
   quotations: false,
   receipts: false,
+  purchaseOrders: false,
   settings: false,
   logs: false,
 };
@@ -109,7 +114,7 @@ function publish() {
   const ready = Object.values(seen).every(Boolean) || error !== null;
   if (!ready) return;
   const sortedLogs = [...logs].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, invoices, quotations, receipts, settings, logs: sortedLogs, error };
+  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, invoices, quotations, receipts, purchaseOrders, settings, logs: sortedLogs, error };
   emit();
 }
 
@@ -243,6 +248,17 @@ function attach() {
         publish();
       },
       denied("receipts"),
+    ),
+    onSnapshot(
+      collection(db, PURCHASE_ORDERS),
+      (snap) => {
+        purchaseOrders = snap.docs
+          .map((d) => normalizePurchaseOrder(d.id, d.data()))
+          .sort((a, b) => b.number.localeCompare(a.number));
+        seen.purchaseOrders = true;
+        publish();
+      },
+      denied("purchaseOrders"),
     ),
     onSnapshot(
       doc(db, ...SETTINGS_DOC),
@@ -628,6 +644,33 @@ export function removeQuotation(id: string): void {
     target?.number || "Quotation",
     `Deleted quotation ${target?.number || id}`,
   );
+}
+
+/* ---------------- purchase orders ---------------- */
+
+export function upsertPurchaseOrder(draft: Omit<PurchaseOrder, "id">, id: string | null): string {
+  const orderId = id ?? newId();
+  const previous = id ? purchaseOrders.find((o) => o.id === id) : null;
+  setDoc(doc(db(), PURCHASE_ORDERS, orderId), clean({ ...draft, updatedAt: new Date().toISOString() })).catch(fail);
+
+  const who = draft.vendorName || "vendor";
+  if (previous) {
+    const changes: string[] = [];
+    if (previous.status !== draft.status) changes.push(`Status: ${previous.status} → ${draft.status}`);
+    if (previous.rows.length !== draft.rows.length) changes.push(`Rows: ${previous.rows.length} → ${draft.rows.length}`);
+    recordActivity("edit", "purchaseOrder", orderId, draft.number,
+      `Updated purchase order ${draft.number} to "${who}"${changes.length ? `: ${changes.join("; ")}` : ""}`);
+  } else {
+    recordActivity("create", "purchaseOrder", orderId, draft.number, `Raised purchase order ${draft.number} to "${who}"`);
+  }
+  return orderId;
+}
+
+export function removePurchaseOrder(id: string): void {
+  const target = purchaseOrders.find((o) => o.id === id);
+  deleteDoc(doc(db(), PURCHASE_ORDERS, id)).catch(fail);
+  recordActivity("delete", "purchaseOrder", id, target?.number || "Purchase order",
+    `Deleted purchase order ${target?.number || id}`);
 }
 
 /* ---------------- receipts ---------------- */
