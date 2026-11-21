@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AuthState,
   describeAuthError,
@@ -10,6 +10,7 @@ import {
   signIn,
   signOut,
 } from "../../lib/auth";
+import { clearSignedOutBy, signedOutBy } from "../../lib/sessions";
 
 type Mode = "sign-in" | "setup" | "reset";
 
@@ -67,7 +68,11 @@ export function SignInScreen({ state }: { state: AuthState }) {
   const [mode, setMode] = useState<Mode>("sign-in");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(() => {
+    const by = signedOutBy();
+    return by ? `You were signed out of this device by ${by}. Sign in again to continue.` : null;
+  });
+  useEffect(() => clearSignedOutBy(), []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

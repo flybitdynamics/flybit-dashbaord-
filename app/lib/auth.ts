@@ -23,6 +23,7 @@ import {
 } from "firebase/firestore";
 import { DEFAULT_ROLES, Role, UserProfile } from "./permissions";
 import { ROLES, SETUP_DOC, USERS, firebaseConfig, getDb, getFirebaseApp } from "./firebase";
+import { dropSession, endOwnSession, startSession } from "./sessions";
 
 /* Passwords live in Firebase Authentication and never touch Firestore. The
    `users` collection holds only who someone is and which role they have;
@@ -113,6 +114,10 @@ function watchProfile(user: User) {
         emit({ role: null });
       }
       emit({ status: "ready", profile });
+      // Ended from another device or by the super admin: sign out here too.
+      void startSession(user, profile, () => {
+        void firebaseSignOut(authInstance()).then(() => window.location.reload());
+      });
     },
     () => emit({ status: "no-profile", profile: null, role: null }),
   );
@@ -136,6 +141,7 @@ function start() {
 
   onAuthStateChanged(authInstance(), (user) => {
     if (!user) {
+      dropSession();
       stopProfile?.();
       stopRole?.();
       emit({ status: "signed-out", user: null, profile: null, role: null });
@@ -213,6 +219,7 @@ export async function signIn(email: string, password: string): Promise<void> {
 /** Reload after signing out so nothing the last person could see stays in
  *  memory for the next one. */
 export async function signOut(): Promise<void> {
+  await endOwnSession();
   await firebaseSignOut(authInstance());
   if (typeof window !== "undefined") window.location.reload();
 }

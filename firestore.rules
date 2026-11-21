@@ -98,6 +98,19 @@ service cloud.firestore {
       allow write: if superAdmin() || isFirstRun();
     }
 
+    // One document per signed-in browser. Its owner and the super admin can
+    // see it and end it; the browser signs itself out when it is ended.
+    match /sessions/{id} {
+      allow read: if signedIn()
+        && (resource.data.uid == request.auth.uid || superAdmin());
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if signedIn()
+        && (resource.data.uid == request.auth.uid || superAdmin())
+        && request.resource.data.uid == resource.data.uid;
+      allow delete: if signedIn()
+        && (resource.data.uid == request.auth.uid || superAdmin());
+    }
+
     // ---------------------------------------------------------------- the desk
     // Reads follow the screens that need the data; writes follow the matrix.
 

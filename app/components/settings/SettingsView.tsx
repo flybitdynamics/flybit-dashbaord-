@@ -7,6 +7,7 @@ import { getServerSnapshot, getSnapshot, subscribe } from "../../lib/store";
 import { useAuth } from "../AuthProvider";
 import { SettingsForm } from "../SettingsForm";
 import { ActivityLogsPanel } from "../logs/ActivityLogsPanel";
+import { ActiveSessions } from "./ActiveSessions";
 import { MyAccount } from "./MyAccount";
 import { PeoplePanel } from "./PeoplePanel";
 import { RolesPanel } from "./RolesPanel";
@@ -108,13 +109,19 @@ export function SettingsView() {
             </div>
           )}
           <PeoplePanel people={people} roles={roles} />
+          <ActiveSessions everyone />
           <RolesPanel roles={roles} people={people} />
         </div>
       )}
 
       {tab === "logs" && <ActivityLogsPanel logs={logs} />}
 
-      {tab === "account" && <MyAccount />}
+      {tab === "account" && (
+        <div className="flex flex-col gap-6">
+          <MyAccount />
+          <ActiveSessions />
+        </div>
+      )}
     </div>
   );
 }
