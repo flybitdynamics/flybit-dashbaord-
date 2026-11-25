@@ -18,6 +18,15 @@ export const PURCHASE_ORDER_STATUSES: Record<PurchaseOrderStatus, string> = {
   cancelled: "Cancelled",
 };
 
+/** Supplier in Gujarat → CGST + SGST; elsewhere in India → IGST; abroad → no GST. */
+export type SupplyType = "inside" | "outside" | "import";
+
+export const SUPPLY_TYPES: Record<SupplyType, string> = {
+  inside: "Inside Gujarat",
+  outside: "Outside Gujarat",
+  import: "Outside India (no GST)",
+};
+
 export interface PurchaseOrderRow {
   id: string;
   description: string;
@@ -67,6 +76,8 @@ export interface PurchaseOrder {
   intro: string;
   /** "USD", "INR"… drives the symbol in the headings and totals. */
   currency: string;
+  /** Where the supplier sits, which decides CGST + SGST or IGST. */
+  supply: SupplyType;
   rows: PurchaseOrderRow[];
   taxes: PurchaseOrderTax[];
   /** Blank means "work it out from the total". */
@@ -144,6 +155,10 @@ export function rowIsComputed(row: PurchaseOrderRow): boolean {
 export interface PurchaseOrderTotals {
   subtotal: number;
   taxes: Array<{ id: string; amount: number | null }>;
+  /** Grand total before rounding. */
+  exact: number;
+  /** Rounded to the nearest whole unit minus the exact total: 0.40, -0.30. */
+  roundOff: number;
   grandTotal: number;
 }
 
@@ -153,8 +168,61 @@ export function totalsFor(order: Pick<PurchaseOrder, "rows" | "taxes">): Purchas
     const rate = parseNumber(tax.rate);
     return { id: tax.id, amount: rate === null ? null : (subtotal * rate) / 100 };
   });
-  const grandTotal = subtotal + taxes.reduce((sum, t) => sum + (t.amount ?? 0), 0);
-  return { subtotal, taxes, grandTotal };
+  const exact = Math.round((subtotal + taxes.reduce((sum, t) => sum + (t.amount ?? 0), 0)) * 100) / 100;
+  const grandTotal = Math.round(exact);
+  const roundOff = Math.round((grandTotal - exact) * 100) / 100;
+  return { subtotal, taxes, exact, roundOff, grandTotal };
+}
+
+/** "0.40", "-0.30" — always two places, as on a tax invoice. */
+export function roundOffText(value: number): string {
+  return value.toFixed(2);
+}
+
+/** The GST % the items carry, when they all carry the same one; else 18. */
+export function itemGstRate(rows: PurchaseOrderRow[]): number {
+  const rates = rows
+    .filter((row) => (rowAmount(row) ?? 0) !== 0)
+    .map((row) => parseNumber(row.gst))
+    .filter((rate): rate is number => rate !== null && rate > 0);
+  return rates.length > 0 && rates.every((rate) => rate === rates[0]) ? rates[0] : 18;
+}
+
+const fmtRate = (n: number) => String(Math.round(n * 100) / 100);
+
+/** Sets CGST / SGST / IGST for where the supplier is: inside Gujarat splits
+ *  the GST half and half, outside Gujarat puts it all on IGST, and an import
+ *  carries none. Any other tax lines are left alone; missing ones are added. */
+export function applySupply(
+  order: Pick<PurchaseOrder, "rows" | "taxes">,
+  supply: SupplyType,
+): PurchaseOrderTax[] {
+  const rate = itemGstRate(order.rows);
+  const want: Record<string, string> =
+    supply === "inside"
+      ? { CGST: fmtRate(rate / 2), SGST: fmtRate(rate / 2), IGST: "NA" }
+      : supply === "outside"
+        ? { CGST: "NA", SGST: "NA", IGST: fmtRate(rate) }
+        : { CGST: "NA", SGST: "NA", IGST: "NA" };
+  const taxes = order.taxes.map((tax) => {
+    const key = tax.label.trim().toUpperCase();
+    return key in want ? { ...tax, rate: want[key] } : tax;
+  });
+  for (const label of ["CGST", "SGST", "IGST"]) {
+    if (!taxes.some((t) => t.label.trim().toUpperCase() === label)) {
+      taxes.push({ id: `tax-${label.toLowerCase()}`, label, rate: want[label] });
+    }
+  }
+  return taxes;
+}
+
+/** For POs saved before the supply choice existed: read it off the taxes. */
+function inferSupply(taxes: PurchaseOrderTax[]): SupplyType {
+  const rateOf = (label: string) =>
+    parseNumber(taxes.find((t) => t.label.trim().toUpperCase() === label)?.rate ?? "");
+  if (rateOf("IGST")) return "outside";
+  if (rateOf("CGST") || rateOf("SGST")) return "inside";
+  return "import";
 }
 
 /* ---------------- amount in words ---------------- */
@@ -296,10 +364,11 @@ export function emptyPurchaseOrder(number: string): PurchaseOrderDraft {
     intro:
       "Please supply the goods and/or services listed below in accordance with this Purchase Order and the agreed specifications, schedule and terms.",
     currency: "USD",
+    supply: "inside",
     rows: [emptyRow("row-1")],
     taxes: [
-      { id: "tax-1", label: "CGST", rate: "NA" },
-      { id: "tax-2", label: "SGST", rate: "NA" },
+      { id: "tax-1", label: "CGST", rate: "9" },
+      { id: "tax-2", label: "SGST", rate: "9" },
       { id: "tax-3", label: "IGST", rate: "NA" },
     ],
     amountWords: "",
@@ -326,6 +395,12 @@ export function samplePurchaseOrder(): PurchaseOrderDraft {
     ...emptyPurchaseOrder("FBD/PO/26-27/001"),
     status: "issued",
     date: "2026-11-12",
+    supply: "import",
+    taxes: [
+      { id: "tax-1", label: "CGST", rate: "NA" },
+      { id: "tax-2", label: "SGST", rate: "NA" },
+      { id: "tax-3", label: "IGST", rate: "NA" },
+    ],
     vendorName: "Hong Kong Data Source Limited, DATAGNSS",
     vendorAddress: "Unit 3, 9/F, One Midtown, 11 Hoi Shing Road, Tauren Wan, N.T.,Hong Kong",
     vendorGstin: "NA",
@@ -342,6 +417,9 @@ export function samplePurchaseOrder(): PurchaseOrderDraft {
 export function normalizePurchaseOrder(id: string, raw: Record<string, unknown>): PurchaseOrder {
   const base = emptyPurchaseOrder("");
   const merged = { ...base, ...raw } as PurchaseOrder;
+  const taxes = Array.isArray(raw.taxes)
+    ? (raw.taxes as PurchaseOrderTax[]).map((t, i) => ({ ...t, label: String(t?.label ?? ""), rate: String(t?.rate ?? ""), id: t?.id || `tax-${i + 1}` }))
+    : base.taxes;
   const list = <T extends { id: string }>(value: unknown, fallback: T[], blank: (id: string) => T): T[] =>
     Array.isArray(value)
       ? (value as T[]).map((item, i) => ({ ...blank(`${i + 1}`), ...item, id: item?.id || `item-${i + 1}` }))
@@ -350,7 +428,8 @@ export function normalizePurchaseOrder(id: string, raw: Record<string, unknown>)
     ...merged,
     id,
     rows: list(raw.rows, base.rows, emptyRow),
-    taxes: list(raw.taxes, base.taxes, (i) => ({ id: i, label: "", rate: "" })),
+    taxes,
+    supply: raw.supply === "inside" || raw.supply === "outside" || raw.supply === "import" ? raw.supply : inferSupply(taxes),
     details: list(raw.details, base.details, (i) => ({ id: i, label: "", value: "" })),
     terms: list(raw.terms, base.terms, (i) => ({ id: i, title: "", body: "" })),
   };

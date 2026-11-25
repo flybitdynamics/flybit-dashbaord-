@@ -19,6 +19,7 @@ import {
   money,
   poDate,
   readPoDate,
+  roundOffText,
   rowAmount,
   rowIsComputed,
   totalsFor,
@@ -283,6 +284,12 @@ export function PurchaseOrderSheet({
                   </tr>
                 );
               })}
+              {totals.roundOff !== 0 && (
+                <tr>
+                  <td>Round Off</td>
+                  <td>{roundOffText(totals.roundOff)}</td>
+                </tr>
+              )}
               <tr className="po-grand">
                 <td>
                   GRAND TOTAL

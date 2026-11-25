@@ -13,6 +13,9 @@ import {
   PurchaseOrderStatus,
   PurchaseOrderTax,
   PurchaseOrderTerm,
+  SUPPLY_TYPES,
+  SupplyType,
+  applySupply,
   emptyRow,
   purchaseOrderFileName,
 } from "../../lib/purchase-orders";
@@ -79,10 +82,14 @@ export function PurchaseOrderEditor({
     id: string,
     patch: Partial<PurchaseOrderDraft[K][number]>,
   ) {
-    setDraft((prev) => ({
-      ...prev,
-      [key]: (prev[key] as Array<{ id: string }>).map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    }));
+    setDraft((prev) => {
+      const next = {
+        ...prev,
+        [key]: (prev[key] as Array<{ id: string }>).map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      };
+      // A new GST % on an item carries through to CGST / SGST / IGST.
+      return key === "rows" && "gst" in patch ? { ...next, taxes: applySupply(next, next.supply) } : next;
+    });
     setDirty(true);
     setProblem(null);
   }
@@ -222,6 +229,22 @@ export function PurchaseOrderEditor({
 
         {canEdit && (
           <>
+            <select
+              aria-label="Where the supplier is"
+              title="Inside Gujarat: CGST + SGST · Outside Gujarat: IGST"
+              className={select}
+              value={draft.supply}
+              onChange={(e) => {
+                const supply = e.target.value as SupplyType;
+                change({ supply, taxes: applySupply(draft, supply) });
+              }}
+            >
+              {(Object.keys(SUPPLY_TYPES) as SupplyType[]).map((key) => (
+                <option key={key} value={key}>
+                  {SUPPLY_TYPES[key]}
+                </option>
+              ))}
+            </select>
             <select
               aria-label="Status"
               className={select}
