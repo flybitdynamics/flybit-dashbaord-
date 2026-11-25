@@ -67,7 +67,7 @@ function RoleEditor({ role, onClose }: { role: Role | null; onClose: () => void 
           </div>
         </>
       }>
-      <form id="role-form" onSubmit={submit} className="flex max-h-[68vh] flex-col gap-4 overflow-y-auto p-5">
+      <form id="role-form" onSubmit={submit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-5">
         {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         <div className="grid gap-3.5 sm:grid-cols-2">
           <Field label="Role name" htmlFor="r-name">
@@ -80,7 +80,7 @@ function RoleEditor({ role, onClose }: { role: Role | null; onClose: () => void 
           </Field>
         </div>
 
-        <div className="overflow-hidden rounded-xl bg-neutral-50">
+        <div className="shrink-0 overflow-hidden rounded-xl bg-neutral-50">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-neutral-200/70">

@@ -55,9 +55,19 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // The page behind stays still while the dialog is open.
+  useEffect(() => {
+    const body = document.body.style;
+    const before = body.overflow;
+    body.overflow = "hidden";
+    return () => {
+      body.overflow = before;
+    };
+  }, []);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-neutral-900/50 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-neutral-900/50 p-0 sm:items-center sm:p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

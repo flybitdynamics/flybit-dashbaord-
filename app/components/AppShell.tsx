@@ -317,7 +317,7 @@ const MODULE_OF: Record<string, Module | null> = {
   "/finance": "finance",
   "/team": "team",
   "/maps": null,
-  "/pdf-editor": null,
+  "/pdf-editor": "pdfEditor",
   "/settings": null,
   "/logs": null,
 };
