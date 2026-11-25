@@ -4,8 +4,17 @@ import { useMemo, useSyncExternalStore } from "react";
 import { getServerSnapshot, getSnapshot, subscribe } from "../lib/store";
 import { SiteHeader } from "../components/SiteHeader";
 import { ActivityLogsPanel } from "../components/logs/ActivityLogsPanel";
+import { RequireAccess } from "../components/RequireAccess";
 
 export default function LogsPage() {
+  return (
+    <RequireAccess module="logs">
+      <Logs />
+    </RequireAccess>
+  );
+}
+
+function Logs() {
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const ready = state !== null;
   const logs = useMemo(() => state?.logs ?? [], [state]);

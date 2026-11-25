@@ -26,6 +26,8 @@ export const MODULES = {
   receipts: { label: "Receipts", hint: "Payment and cash receipts", actions: ["view", "create", "edit", "delete"] },
   finance: { label: "Finance & payments", hint: "Payments, expenses, salary run", actions: ["view", "create", "edit", "delete"] },
   team: { label: "Team", hint: "Staff, attendance and leave", actions: ["view", "create", "edit", "delete"] },
+  maps: { label: "Maps", hint: "AeroGrid show-layout planner", actions: ["view"] },
+  logs: { label: "Activity logs", hint: "Who changed what, and when", actions: ["view"] },
   pdfEditor: { label: "PDF Editor", hint: "Open a PDF and edit its text, pages and signatures", actions: ["view"] },
   settings: { label: "Company settings", hint: "Values the documents are filled from", actions: ["view", "edit"] },
 } as const satisfies Record<string, { label: string; hint: string; actions: readonly Action[] }>;
@@ -80,7 +82,7 @@ export const DEFAULT_ROLES: Role[] = [
     description: "Runs the desk day to day — everything except users and roles.",
     permissions: matrix({
       shows: ALL, calendar: ["view"], clients: ALL, pilots: ALL, inventory: ALL, documents: ["view"],
-      quotations: ALL, invoices: ALL, receipts: ALL, finance: ALL, team: ALL, pdfEditor: ["view"], settings: ["view", "edit"],
+      quotations: ALL, invoices: ALL, receipts: ALL, finance: ALL, team: ALL, maps: ["view"], logs: ["view"], pdfEditor: ["view"], settings: ["view", "edit"],
     }),
   },
   {
@@ -90,7 +92,7 @@ export const DEFAULT_ROLES: Role[] = [
     permissions: matrix({
       shows: ["view", "create", "edit"], calendar: ["view"], clients: ["view", "create", "edit"],
       pilots: ["view", "create", "edit"], inventory: ["view", "create", "edit"], documents: ["view"], quotations: ALL, invoices: ["view"], receipts: ["view"],
-      team: ["view"], settings: ["view"],
+      team: ["view"], maps: ["view"], settings: ["view"],
     }),
   },
   {

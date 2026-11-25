@@ -22,6 +22,7 @@ import {
   uid,
 } from "../../lib/pdf-editor/model";
 import { openPdf } from "../../lib/pdf-editor/pdfjs";
+import { ImagePageOptions, ImagePagesDialog, PickedImage, readImage } from "./ImagePagesDialog";
 import { DownMode, PdfPage, pageRotation } from "./PdfPage";
 
 /* ---------- history ---------- */
@@ -93,25 +94,6 @@ type LoadedSource = Source & { pdf: PDFDocumentProxy };
 
 const isPdf = (f: File) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
 
-async function readImage(file: File): Promise<{ src: string; w: number; h: number }> {
-  const url = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-  const img = new Image();
-  img.src = url;
-  await img.decode();
-  if (/^data:image\/(png|jpe?g)/.test(url)) return { src: url, w: img.naturalWidth, h: img.naturalHeight };
-  // Other formats (webp, gif, svg…) become PNG, which PDFs can hold.
-  const c = document.createElement("canvas");
-  c.width = img.naturalWidth || 400;
-  c.height = img.naturalHeight || 400;
-  c.getContext("2d")?.drawImage(img, 0, 0, c.width, c.height);
-  return { src: c.toDataURL("image/png"), w: c.width, h: c.height };
-}
-
 const TOOLS: Array<{ id: Tool; label: string; hint: string; icon: React.ReactNode }> = [
   { id: "select", label: "Select", hint: "Select, move and edit (V). Double-click text to change it.", icon: <path d="M4 3l11 6.5-5 1.2-2.2 4.8z" /> },
   { id: "text", label: "Text", hint: "Add text: click where it goes (T)", icon: <path d="M4 5V3.5h12V5M10 3.5v13M7.5 16.5h5" /> },
@@ -143,6 +125,7 @@ export function PdfEditor() {
   const [shapeStyle, setShapeStyle] = useState({ stroke: "#dc2626", fill: null as string | null, strokeWidth: 1.5 });
   const [penStyle, setPenStyle] = useState({ color: "#1d3a8a", width: 2 });
   const [highlightColor, setHighlightColor] = useState("#fde047");
+  const [imagePages, setImagePages] = useState<{ appending: boolean; files: File[] } | null>(null);
 
   const pageEls = useRef(new Map<string, HTMLDivElement>());
   const session = useRef<Session | null>(null);
@@ -233,6 +216,64 @@ export function PdfEditor() {
     setActivePage(p.id);
     setZoom(fitZoom([p]));
     dispatch({ t: "reset", doc: { pages: [p], objects: [] } });
+  }
+
+  /** Each picked image on a page of its own, in the order they were arranged. */
+  function makeImagePages(images: PickedImage[], { size, margin }: ImagePageOptions) {
+    const paper: Record<"a4" | "letter", [number, number]> = { a4: [595.28, 841.89], letter: [612, 792] };
+    const pages: PageRef[] = [];
+    const objects: EditObj[] = [];
+    for (const img of images) {
+      let W: number;
+      let H: number;
+      if (size === "fit") {
+        // Screen pixels to points, kept within A3 so phone photos stay a sensible size.
+        const k = Math.min(0.75, 1190 / Math.max(img.w, img.h));
+        W = img.w * k + 2 * margin;
+        H = img.h * k + 2 * margin;
+      } else {
+        const [a, b] = paper[size];
+        [W, H] = img.w > img.h ? [b, a] : [a, b];
+      }
+      const page = blankPage(W, H);
+      const box = { w: W - 2 * margin, h: H - 2 * margin };
+      const k = Math.min(box.w / img.w, box.h / img.h);
+      const w = img.w * k;
+      const h = img.h * k;
+      pages.push(page);
+      objects.push({ id: uid(), pageId: page.id, kind: "image", src: img.src, x: (W - w) / 2, y: (H - h) / 2, w, h, opacity: 1 });
+    }
+    setImagePages(null);
+    if (!pages.length) return;
+    if (loaded) {
+      dispatch({ t: "commit", fn: (d) => ({ pages: [...d.pages, ...pages], objects: [...d.objects, ...objects] }) });
+      setTimeout(() => goTo(pages[0].id), 50);
+      return;
+    }
+    setSources([]);
+    setOrigs({});
+    setFileName(images.length === 1 ? images[0].name.replace(/\.[^.]+$/, "") : "Images");
+    setSelectedId(null);
+    setTool("select");
+    setActivePage(pages[0].id);
+    setZoom(fitZoom(pages));
+    dispatch({ t: "reset", doc: { pages, objects } });
+  }
+
+  function movePage(fromId: string, toId: string) {
+    if (fromId === toId) return;
+    dispatch({
+      t: "commit",
+      fn: (d) => {
+        const pages = [...d.pages];
+        const from = pages.findIndex((p) => p.id === fromId);
+        const to = pages.findIndex((p) => p.id === toId);
+        if (from < 0 || to < 0) return d;
+        const [p] = pages.splice(from, 1);
+        pages.splice(to, 0, p);
+        return { ...d, pages };
+      },
+    });
   }
 
   function closeDoc() {
@@ -603,9 +644,10 @@ export function PdfEditor() {
     setDragOver(false);
     const files = Array.from(e.dataTransfer.files);
     const pdf = files.find(isPdf);
-    const img = files.find((f) => f.type.startsWith("image/"));
+    const imgs = files.filter((f) => f.type.startsWith("image/"));
     if (pdf) void (loaded ? addPdf(pdf) : openFile(pdf));
-    else if (img && loaded) void insertImage(img);
+    else if (imgs.length === 1 && loaded) void insertImage(imgs[0]);
+    else if (imgs.length) setImagePages({ appending: loaded, files: imgs });
   }
 
   const hiddenInputs = (
@@ -613,6 +655,9 @@ export function PdfEditor() {
       <input ref={openInput} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openFile(f); }} />
       <input ref={addInput} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void addPdf(f); }} />
       <input ref={imageInput} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void insertImage(f); }} />
+      {imagePages && (
+        <ImagePagesDialog appending={imagePages.appending} initial={imagePages.files} onCancel={() => setImagePages(null)} onMake={makeImagePages} />
+      )}
     </>
   );
 
@@ -644,6 +689,22 @@ export function PdfEditor() {
           <span className="text-xs text-neutral-500">It opens in this browser only. Nothing is uploaded or saved to the server.</span>
         </button>
         {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        <button
+          type="button"
+          onClick={() => setImagePages({ appending: false, files: [] })}
+          className="flex items-center gap-4 rounded-xl bg-white px-5 py-4 text-left shadow-sm ring-1 ring-neutral-200 hover:bg-neutral-50"
+        >
+          <svg {...svgProps} className="size-8 shrink-0 text-neutral-500">
+            <rect x="2.5" y="5" width="10" height="11" rx="1.2" />
+            <path d="M7 5V3.8a1 1 0 0 1 1-1h8.5a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H12.5" />
+            <circle cx="6" cy="9" r="1.1" />
+            <path d="m3 14.5 3-2.8 2.5 2 1.5-1.2 2.5 2" />
+          </svg>
+          <span>
+            <span className="block text-sm font-medium text-neutral-900">Images to PDF</span>
+            <span className="block text-xs text-neutral-500">Pick several photos or scans, put them in order, and each one becomes a page. You can edit it all afterwards.</span>
+          </span>
+        </button>
         <div className="flex justify-center">
           <button type="button" onClick={startBlank} className="text-xs text-neutral-500 underline-offset-2 hover:text-neutral-800 hover:underline">
             or start from a blank A4 page
@@ -721,6 +782,10 @@ export function PdfEditor() {
             <button type="button" className={btn} title="Add the pages of another PDF at the end" onClick={() => addInput.current?.click()}>
               <svg {...svgProps}><path d="M10 4v12M4 10h12" /></svg>
               <span className="hidden lg:inline">Add PDF</span>
+            </button>
+            <button type="button" className={btn} title="Add several images, each as a new page at the end" onClick={() => setImagePages({ appending: true, files: [] })}>
+              <svg {...svgProps}><rect x="3" y="4" width="14" height="12" rx="1.5" /><path d="m3.5 14.5 4-4 3 3 2-2 4 3.5" /></svg>
+              <span className="hidden lg:inline">Image pages</span>
             </button>
             <button type="button" className={btn} title="Open a different PDF" onClick={() => openInput.current?.click()}>
               <span>Open</span>
@@ -861,6 +926,8 @@ export function PdfEditor() {
                 count={doc.pages.length}
                 pdf={p.src ? sources[p.src.doc]?.pdf ?? null : null}
                 active={activePage === p.id}
+                images={doc.objects.filter((o): o is ImageObj => o.kind === "image" && o.pageId === p.id)}
+                onMovePage={(fromId) => movePage(fromId, p.id)}
                 onClick={() => goTo(p.id)}
                 onOp={(op) => pageOp(p.id, op)}
               />
@@ -908,6 +975,8 @@ export function PdfEditor() {
   );
 }
 
+const PAGE_DRAG = "application/x-flybit-page";
+
 function Opacity({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <label className="flex items-center gap-1.5">
@@ -924,6 +993,8 @@ function Thumb({
   count,
   pdf,
   active,
+  images,
+  onMovePage,
   onClick,
   onOp,
 }: {
@@ -932,6 +1003,8 @@ function Thumb({
   count: number;
   pdf: PDFDocumentProxy | null;
   active: boolean;
+  images: ImageObj[];
+  onMovePage: (fromId: string) => void;
   onClick: () => void;
   onOp: (op: "left" | "right" | "up" | "down" | "delete" | "duplicate" | "blank") => void;
 }) {
@@ -966,6 +1039,7 @@ function Thumb({
 
   const W = width;
   const H = page.h * scale;
+  const [over, setOver] = useState(false);
   const tiny = "flex size-6 items-center justify-center rounded text-neutral-600 hover:bg-white hover:text-neutral-900 disabled:opacity-30";
 
   return (
@@ -973,11 +1047,28 @@ function Thumb({
       <button
         type="button"
         onClick={onClick}
-        className={`relative overflow-hidden rounded-sm bg-white shadow-sm ring-2 ${active ? "ring-sky-500" : "ring-transparent hover:ring-neutral-300"}`}
+        draggable
+        title="Drag to move this page"
+        onDragStart={(e) => { e.dataTransfer.setData(PAGE_DRAG, page.id); e.dataTransfer.effectAllowed = "move"; }}
+        onDragOver={(e) => { if (e.dataTransfer.types.includes(PAGE_DRAG)) { e.preventDefault(); e.stopPropagation(); setOver(true); } }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          const from = e.dataTransfer.getData(PAGE_DRAG);
+          if (!from) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setOver(false);
+          onMovePage(from);
+        }}
+        className={`relative cursor-grab overflow-hidden rounded-sm bg-white shadow-sm ring-2 active:cursor-grabbing ${over ? "ring-sky-400" : active ? "ring-sky-500" : "ring-transparent hover:ring-neutral-300"}`}
         style={{ width: sideways ? H : W, height: sideways ? W : H }}
       >
-        <div className="absolute left-1/2 top-1/2" style={{ width: W, height: H, transform: `translate(-50%, -50%) rotate(${rot}deg)` }}>
+        <div className="pointer-events-none absolute left-1/2 top-1/2" style={{ width: W, height: H, transform: `translate(-50%, -50%) rotate(${rot}deg)` }}>
           {page.src && <canvas ref={canvasRef} className="h-full w-full" />}
+          {images.map((o) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={o.id} src={o.src} alt="" draggable={false} className="absolute" style={{ left: o.x * scale, top: o.y * scale, width: o.w * scale, height: o.h * scale, opacity: o.opacity }} />
+          ))}
         </div>
       </button>
       <div className="flex items-center gap-0.5 text-[11px] text-neutral-500">

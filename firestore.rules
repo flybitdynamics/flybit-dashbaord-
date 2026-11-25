@@ -217,9 +217,10 @@ service cloud.firestore {
     }
 
     // The activity trail. Anyone signed in adds to it as they work; only
-    // the super admin may rewrite or remove an entry.
+    // roles with Activity logs may read it, and only the super admin may
+    // rewrite or remove an entry.
     match /audit_logs/{id} {
-      allow read: if active();
+      allow read: if can("logs", "view");
       allow create: if active();
       allow update, delete: if superAdmin();
     }

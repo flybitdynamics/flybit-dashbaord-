@@ -316,10 +316,10 @@ const MODULE_OF: Record<string, Module | null> = {
   "/purchase-orders": "finance",
   "/finance": "finance",
   "/team": "team",
-  "/maps": null,
+  "/maps": "maps",
   "/pdf-editor": "pdfEditor",
   "/settings": null,
-  "/logs": null,
+  "/logs": "logs",
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
