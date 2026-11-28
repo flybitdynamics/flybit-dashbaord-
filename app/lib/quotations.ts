@@ -67,6 +67,7 @@ export interface Quotation {
  *  To change a document, regenerate its pages there. */
 export const QUOTATION_ATTACHMENTS = [
   { id: "corporate", label: "Corporate event terms", pages: 2 },
+  { id: "govt", label: "Govt / PSU event terms", pages: 2 },
   { id: "private", label: "Direct customer / private event terms", pages: 2 },
   { id: "agency", label: "Event company terms", pages: 3 },
 ];
