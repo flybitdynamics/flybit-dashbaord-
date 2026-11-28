@@ -125,7 +125,9 @@ export function DocumentsDialog({
   const formatCount = (includeWord ? 1 : 0) + (includePdf ? 1 : 0);
   const letterChosen = chosen.includes("moca-letter");
   const includeTrialLetter = wantTrial && letterChosen;
-  const fileCount = (chosen.length + (includeTrialLetter ? 1 : 0)) * formatCount;
+  /** templates/attachments: added to every zip as they are. */
+  const certificateCount = 2;
+  const fileCount = (chosen.length + (includeTrialLetter ? 1 : 0)) * formatCount + certificateCount;
 
   // Printed exactly the way the main show's line is built.
   const trialWindow = `${formatTime(trialStart)} – ${formatTime(trialEnd)}, ${formatDateOrdinal(trialDate)}`;
@@ -276,6 +278,9 @@ export function DocumentsDialog({
               );
             })}
           </div>
+          <p className="mt-2 text-xs text-neutral-500">
+            Always added to the zip: Remote Pilot Certificate (Jehan) and UIN certificate (PDF).
+          </p>
         </fieldset>
 
         <fieldset className="mb-5">

@@ -17,6 +17,9 @@ const TEMPLATE_DIR = path.join(process.cwd(), "templates");
 /** Same content, with LibreOffice's rendering quirks corrected — used only
  *  as the conversion source, never handed over as a .docx. */
 const PDF_TEMPLATE_DIR = path.join(TEMPLATE_DIR, "pdf");
+/** Ready-made PDFs that go into every permission zip as they are: the
+ *  remote pilot certificate and the drone's UIN certificate. */
+const ATTACHMENT_DIR = path.join(TEMPLATE_DIR, "attachments");
 
 interface Body {
   fields?: Record<string, string>;
@@ -128,6 +131,18 @@ export async function POST(request: Request) {
         { error: `Could not produce "${entry.label}": ${message}` },
         { status: 500 },
       );
+    }
+  }
+
+  try {
+    const attachments = (await fs.readdir(ATTACHMENT_DIR)).filter((f) => f.toLowerCase().endsWith(".pdf"));
+    for (const name of attachments) {
+      bundle.file(`${base}/${name}`, await fs.readFile(path.join(ATTACHMENT_DIR, name)));
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return Response.json({ error: `Could not add the certificates: ${message}` }, { status: 500 });
     }
   }
 
