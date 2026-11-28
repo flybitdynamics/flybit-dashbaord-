@@ -85,6 +85,8 @@ const LABELS: Record<keyof Settings, string> = {
   operatingTime: "Operating time",
   weather: "Operating weather",
   operationType: "Type of operation",
+  // Set from the Shows page, not this form.
+  dronesAvailable: "Drones available",
 };
 
 export function SettingsForm() {

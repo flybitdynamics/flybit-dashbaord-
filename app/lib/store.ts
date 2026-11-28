@@ -856,6 +856,16 @@ export function updateSettings(next: Settings): void {
   recordActivity("edit", "settings", "company", "Settings", "Updated company document settings");
 }
 
+/** Only the fleet size, so anyone who can edit shows can change it
+ *  without touching the company settings. */
+export function setDronesAvailable(count: number): void {
+  const value = Math.max(0, Math.round(Number(count) || 0));
+  const before = settings.dronesAvailable || 0;
+  if (value === before) return;
+  setDoc(doc(db(), ...SETTINGS_DOC), { dronesAvailable: value }, { merge: true }).catch(fail);
+  recordActivity("edit", "settings", "company", "Drones available", `Drones available: ${before} → ${value}`);
+}
+
 /** Point older shows at a client record without touching anything else. */
 /** Attach the formation planned in Maps to a show. */
 export function saveShowLayout(id: string, layout: ShowLayout): void {

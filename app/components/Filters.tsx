@@ -10,6 +10,8 @@ export interface FilterState {
   /** "open" = inquiry, confirmed and completed — everything still in play. */
   status: "open" | "all" | ShowStatus;
   pilotId: "all" | string;
+  /** "short" keeps the shows that need more drones than the fleet has. */
+  drones: "all" | "short";
   /** "updated" puts the shows changed most recently at the top. */
   sort: "updated" | "date";
 }
@@ -20,6 +22,7 @@ export const defaultFilters: FilterState = {
   payment: "all",
   status: "all",
   pilotId: "all",
+  drones: "all",
   sort: "updated",
 };
 
@@ -36,10 +39,13 @@ const selectClass =
 export function Filters({
   filters,
   pilots = [],
+  dronesAvailable = 0,
   onChange,
 }: {
   filters: FilterState;
   pilots?: Pilot[];
+  /** The fleet size; the drone filter shows once it is set. */
+  dronesAvailable?: number;
   onChange: (next: FilterState) => void;
 }) {
   const set = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
@@ -120,6 +126,18 @@ export function Filters({
         <option value="partial">Partially paid</option>
         <option value="paid">Paid in full</option>
       </select>
+
+      {dronesAvailable > 0 && (
+        <select
+          aria-label="Filter by drones needed"
+          className={`${selectClass} ${filters.drones === "short" ? "border-red-300 text-red-700" : ""}`}
+          value={filters.drones}
+          onChange={(e) => set("drones", e.target.value as FilterState["drones"])}
+        >
+          <option value="all">Any drone count</option>
+          <option value="short">Lack of drones (needs over {dronesAvailable})</option>
+        </select>
+      )}
 
       <select
         aria-label="Sort shows"

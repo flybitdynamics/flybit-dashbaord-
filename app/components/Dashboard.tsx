@@ -27,6 +27,7 @@ import {
   removeExpense,
   removePayment,
   removeShow,
+  setDronesAvailable,
   setShowStatus,
   subscribe,
   upsertClient,
@@ -41,6 +42,7 @@ import {
 import { ImportShowsDialog } from "./ImportShowsDialog";
 import { useAuth } from "./AuthProvider";
 import { DocumentsDialog } from "./DocumentsDialog";
+import { DronesAvailableBox } from "./DronesAvailableBox";
 import { FilterState, Filters, defaultFilters } from "./Filters";
 import { ExpenseDialog } from "./finance/ExpenseDialog";
 import { PaymentsDialog } from "./PaymentsDialog";
@@ -83,6 +85,10 @@ export function Dashboard() {
   const loggedAt = useMemo(() => latestLogTimes(state?.logs ?? []), [state]);
   const settings = state?.settings;
   const storeError = state?.error ?? null;
+  const dronesAvailable = settings?.dronesAvailable ?? 0;
+  /** Needs more drones than the fleet has. */
+  const lacksDrones = (show: Show) => dronesAvailable > 0 && (show.droneCount || 0) > dronesAvailable;
+  const shortCount = shows.filter((s) => isOpen(s) && lacksDrones(s)).length;
 
   /** The live copy, so a stage change shows up in an open dialog at once. */
   const live = (show: Show) => shows.find((s) => s.id === show.id) ?? show;
@@ -104,6 +110,7 @@ export function Dashboard() {
     const query = filters.query.trim().toLowerCase();
     const matching = shows.filter((show) => {
       if (filters.zone !== "all" && show.zone !== filters.zone) return false;
+      if (filters.drones === "short" && !lacksDrones(show)) return false;
 
       if (filters.status === "open") {
         if (!isOpen(show)) return false;
@@ -159,7 +166,8 @@ export function Dashboard() {
     });
     // The store keeps shows in show-date order already.
     return filters.sort === "updated" ? byLastChanged(matching, loggedAt) : matching;
-  }, [shows, payments, filters, pilotNames, loggedAt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lacksDrones reads dronesAvailable
+  }, [shows, payments, filters, pilotNames, loggedAt, dronesAvailable]);
 
   function exportCsv() {
     const headers = [
@@ -254,6 +262,20 @@ export function Dashboard() {
             >
               Export CSV
             </button>
+            {ready && (
+              <DronesAvailableBox
+                value={dronesAvailable}
+                short={shortCount}
+                canEdit={canEditShow}
+                active={filters.drones === "short"}
+                onSave={setDronesAvailable}
+                onShowShort={() =>
+                  setFilters((prev) =>
+                    prev.drones === "short" ? { ...prev, drones: "all" } : { ...prev, drones: "short", status: "open" },
+                  )
+                }
+              />
+            )}
             {canCreate && (
               <button
                 type="button"
@@ -305,7 +327,7 @@ export function Dashboard() {
               </div>
             </div>
 
-            <Filters filters={filters} pilots={pilots} onChange={setFilters} />
+            <Filters filters={filters} pilots={pilots} dronesAvailable={dronesAvailable} onChange={setFilters} />
 
             <ShowTable
               shows={visible}

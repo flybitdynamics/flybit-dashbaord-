@@ -201,6 +201,11 @@ service cloud.firestore {
     match /settings/{id} {
       allow read: if can("settings", "view") || can("documents", "view") || can("shows", "view");
       allow write: if can("settings", "edit");
+      // The Shows page keeps the fleet size here; show editors may change only that.
+      allow create: if can("shows", "edit")
+        && request.resource.data.keys().hasOnly(["dronesAvailable"]);
+      allow update: if can("shows", "edit")
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["dronesAvailable"]);
     }
 
     // Team: salaries live here, so finance and team viewers only.

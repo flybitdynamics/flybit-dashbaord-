@@ -249,6 +249,9 @@ export interface Settings {
   operatingTime: string;
   weather: string;
   operationType: string;
+  /** Drones in the fleet ready to fly. Shows that need more are flagged on
+   *  the Shows page. 0 means it hasn't been set. */
+  dronesAvailable: number;
 }
 
 /** Straight out of the current permission documents. */
@@ -282,6 +285,7 @@ export const DEFAULT_SETTINGS: Settings = {
   operatingTime: "15-20 mins",
   weather: "Normal",
   operationType: "VLOS",
+  dronesAvailable: 0,
 };
 
 /* Zone is a fact about the venue's airspace on the DGCA map, not a status
