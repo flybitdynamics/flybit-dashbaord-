@@ -168,6 +168,14 @@ service cloud.firestore {
       allow delete: if can("quotations", "delete");
     }
 
+    // Work orders clients issue to Flybit, opened by the Finance permission.
+    match /workOrders/{id} {
+      allow read: if can("finance", "view");
+      allow create: if can("finance", "create");
+      allow update: if can("finance", "edit");
+      allow delete: if can("finance", "delete");
+    }
+
     // Purchase orders to suppliers, opened by the Finance permission.
     match /purchaseOrders/{id} {
       allow read: if can("finance", "view");

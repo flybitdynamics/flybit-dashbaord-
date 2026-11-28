@@ -35,6 +35,7 @@ import { Invoice, normalizeInvoice, totalsFor } from "./invoices";
 import { Quotation, normalizeQuotation } from "./quotations";
 import { Receipt, normalizeReceipt, settledBy } from "./receipts";
 import { PurchaseOrder, normalizePurchaseOrder } from "./purchase-orders";
+import { WorkOrder, normalizeWorkOrder } from "./work-orders";
 import {
   CLIENTS,
   EXPENSES,
@@ -43,6 +44,7 @@ import {
   QUOTATIONS,
   RECEIPTS,
   PURCHASE_ORDERS,
+  WORK_ORDERS,
   PAYMENTS,
   PILOTS,
   PLACES,
@@ -65,6 +67,7 @@ export interface DeskState {
   quotations: Quotation[];
   receipts: Receipt[];
   purchaseOrders: PurchaseOrder[];
+  workOrders: WorkOrder[];
   settings: Settings;
   logs: AuditLog[];
   /** Set when Firestore refuses or cannot be reached. */
@@ -84,6 +87,7 @@ let invoices: Invoice[] = [];
 let quotations: Quotation[] = [];
 let receipts: Receipt[] = [];
 let purchaseOrders: PurchaseOrder[] = [];
+let workOrders: WorkOrder[] = [];
 let settings: Settings = DEFAULT_SETTINGS;
 let logs: AuditLog[] = [];
 let error: string | null = null;
@@ -98,6 +102,7 @@ const seen = {
   quotations: false,
   receipts: false,
   purchaseOrders: false,
+  workOrders: false,
   settings: false,
   logs: false,
 };
@@ -114,7 +119,7 @@ function publish() {
   const ready = Object.values(seen).every(Boolean) || error !== null;
   if (!ready) return;
   const sortedLogs = [...logs].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, invoices, quotations, receipts, purchaseOrders, settings, logs: sortedLogs, error };
+  state = { shows: sortShows(shows), payments, expenses, clients, pilots, places, invoices, quotations, receipts, purchaseOrders, workOrders, settings, logs: sortedLogs, error };
   emit();
 }
 
@@ -259,6 +264,17 @@ function attach() {
         publish();
       },
       denied("purchaseOrders"),
+    ),
+    onSnapshot(
+      collection(db, WORK_ORDERS),
+      (snap) => {
+        workOrders = snap.docs
+          .map((d) => normalizeWorkOrder(d.id, d.data()))
+          .sort((a, b) => b.number.localeCompare(a.number));
+        seen.workOrders = true;
+        publish();
+      },
+      denied("workOrders"),
     ),
     onSnapshot(
       doc(db, ...SETTINGS_DOC),
@@ -671,6 +687,33 @@ export function removePurchaseOrder(id: string): void {
   deleteDoc(doc(db(), PURCHASE_ORDERS, id)).catch(fail);
   recordActivity("delete", "purchaseOrder", id, target?.number || "Purchase order",
     `Deleted purchase order ${target?.number || id}`);
+}
+
+/* ---------------- work orders ---------------- */
+
+export function upsertWorkOrder(draft: Omit<WorkOrder, "id">, id: string | null): string {
+  const orderId = id ?? newId();
+  const previous = id ? workOrders.find((o) => o.id === id) : null;
+  setDoc(doc(db(), WORK_ORDERS, orderId), clean({ ...draft, updatedAt: new Date().toISOString() })).catch(fail);
+
+  const who = draft.issuedBy || draft.clientName || "client";
+  if (previous) {
+    const changes: string[] = [];
+    if (previous.status !== draft.status) changes.push(`Status: ${previous.status} → ${draft.status}`);
+    if (previous.value !== draft.value) changes.push(`Value: ${previous.value} → ${draft.value}`);
+    recordActivity("edit", "workOrder", orderId, draft.number,
+      `Updated work order ${draft.number} from "${who}"${changes.length ? `: ${changes.join("; ")}` : ""}`);
+  } else {
+    recordActivity("create", "workOrder", orderId, draft.number, `Added work order ${draft.number} from "${who}"`);
+  }
+  return orderId;
+}
+
+export function removeWorkOrder(id: string): void {
+  const target = workOrders.find((o) => o.id === id);
+  deleteDoc(doc(db(), WORK_ORDERS, id)).catch(fail);
+  recordActivity("delete", "workOrder", id, target?.number || "Work order",
+    `Deleted work order ${target?.number || id}`);
 }
 
 /* ---------------- receipts ---------------- */
